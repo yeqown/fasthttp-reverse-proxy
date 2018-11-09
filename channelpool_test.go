@@ -26,3 +26,26 @@ func Test_chanPool(t *testing.T) {
 
 	t.Logf("proxy addr: %v and addr is: %s", p, p.client.Addr)
 }
+
+func BenchmarkNewReverseProxyWithPool(b *testing.B) {
+	b.StopTimer()
+	pool, err := NewChanPool(10, 100, func(addr string) (*ReverseProxy, error) {
+		return NewReverseProxy(addr), nil
+	})
+	if err != nil {
+		b.Fatal(err)
+	}
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		proxy, err := pool.Get("locahost:8080")
+		if err != nil {
+			b.Fatal(err)
+		}
+		if proxy == nil {
+			b.Fatalf("could not get from pool, proxy is nil")
+		}
+		if proxy.client == nil {
+			b.Fatalf("could not get from pool, client is nil")
+		}
+	}
+}
