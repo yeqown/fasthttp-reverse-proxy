@@ -40,6 +40,7 @@ func (p *ReverseProxy) ServeHTTP(ctx *fasthttp.RequestCtx) {
 		req.Header.Del(h)
 	}
 
+	ctx.Logger().Printf("recv a requets to proxy to: %s", p.client.Addr)
 	if err := p.client.Do(req, res); err != nil {
 		ctx.Logger().Printf("could not proxy: %v\n", err)
 		return
@@ -49,6 +50,23 @@ func (p *ReverseProxy) ServeHTTP(ctx *fasthttp.RequestCtx) {
 	for _, h := range hopHeaders {
 		res.Header.Del(h)
 	}
+}
+
+// SetClient ...
+func (p *ReverseProxy) SetClient(addr string) *ReverseProxy {
+	p.client.Addr = addr
+	return p
+}
+
+// Reset ...
+func (p *ReverseProxy) Reset() {
+	p.client.Addr = ""
+}
+
+// Close ...
+func (p *ReverseProxy) Close() {
+	p.client = nil
+	p = nil
 }
 
 func copyResponse(src *fasthttp.Response, dst *fasthttp.Response) {

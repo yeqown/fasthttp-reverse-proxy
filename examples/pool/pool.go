@@ -1,33 +1,3 @@
-# fasthttp-reverse-proxy
-reverse http proxy based on fasthttp
-
-currently, it's so simple ~
-
-### use it alone
-```go
-import (
-	"github.com/valyala/fasthttp"
-	proxy "github.com/yeqown/fasthttp-reverse-proxy"
-)
-
-var (
-	proxyServer = proxy.NewReverseProxy("localhost:8080")
-)
-
-// ProxyHandler ...
-func ProxyHandler(ctx *fasthttp.RequestCtx) {
-	// all proxy to localhost
-	proxyServer.ServeHTTP(ctx)
-}
-
-func main() {
-	fasthttp.ListenAndServe(":8081", ProxyHandler)
-}
-```
-
-### use with pool
-
-```go
 package main
 
 import (
@@ -43,7 +13,7 @@ var (
 )
 
 func init() {
-	pool, err = proxy.NewChanPool(10, 100,
+	pool, err = proxy.NewChanPool(100, 200,
 		func(addr string) (*proxy.ReverseProxy, error) {
 			p := proxy.NewReverseProxy(addr)
 			return p, nil
@@ -68,4 +38,3 @@ func main() {
 		panic(err)
 	}
 }
-```
