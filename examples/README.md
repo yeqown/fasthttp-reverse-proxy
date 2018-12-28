@@ -131,22 +131,4 @@ Statistics        Avg      Stdev        Max
   Throughput:     6.31MB/s%
 ```
 
-### 4. Server with fasthttp ProxyPool (poolConfig, initialCap:10, maxCap:100)
-
-link to [Code](pool/pool.go)
-
-```sh
-➜  ~ bombardier -c 125 -t 10s localhost:8083/foo
-Bombarding http://localhost:8083/foo for 10s using 125 connection(s)
-
-Done!
-Statistics        Avg      Stdev        Max
-  Reqs/sec     11914.93    1935.58   16369.31
-  Latency       10.48ms     2.23ms    72.94ms
-  HTTP codes:
-    1xx - 0, 2xx - 118995, 3xx - 0, 4xx - 0, 5xx - 0
-    others - 0
-  Throughput:     2.71MB/s%
-```
-
 > Notice: some close work maybe cause bug, but result here in testing DOSE NOT do this.

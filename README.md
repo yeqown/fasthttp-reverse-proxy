@@ -25,47 +25,47 @@ func main() {
 }
 ```
 
-### use with pool
-
+### use with pool 
+> deleted in master branch, but I backup in old-with-pool. and here link to the [Code](https://github.com/valyala/fasthttp/blob/caea86794cef49a3c52a535fd7162c17b5b46640/server.go#L1511) of fasthttp pool
 ```go
-package main
+// package main
 
-import (
-	"log"
+// import (
+// 	"log"
 
-	"github.com/valyala/fasthttp"
-	proxy "github.com/yeqown/fasthttp-reverse-proxy"
-)
+// 	"github.com/valyala/fasthttp"
+// 	proxy "github.com/yeqown/fasthttp-reverse-proxy"
+// )
 
-var (
-	pool proxy.Pool
-	err  error
-)
+// var (
+// 	pool proxy.Pool
+// 	err  error
+// )
 
-func init() {
-	pool, err = proxy.NewChanPool(10, 100,
-		func(addr string) (*proxy.ReverseProxy, error) {
-			p := proxy.NewReverseProxy(addr)
-			return p, nil
-		})
-}
+// func init() {
+// 	pool, err = proxy.NewChanPool(10, 100,
+// 		func(addr string) (*proxy.ReverseProxy, error) {
+// 			p := proxy.NewReverseProxy(addr)
+// 			return p, nil
+// 		})
+// }
 
-// ProxyPoolHandler ...
-func ProxyPoolHandler(ctx *fasthttp.RequestCtx) {
-	proxyServer, err := pool.Get("localhost:8080")
-	if err != nil {
-		log.Println(err)
-		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
-		return
-	}
-	defer pool.Put(proxyServer)
-	// all proxy to localhost
-	proxyServer.ServeHTTP(ctx)
-}
+// // ProxyPoolHandler ...
+// func ProxyPoolHandler(ctx *fasthttp.RequestCtx) {
+// 	proxyServer, err := pool.Get("localhost:8080")
+// 	if err != nil {
+// 		log.Println(err)
+// 		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
+// 		return
+// 	}
+// 	defer pool.Put(proxyServer)
+// 	// all proxy to localhost
+// 	proxyServer.ServeHTTP(ctx)
+// }
 
-func main() {
-	if err := fasthttp.ListenAndServe(":8083", ProxyPoolHandler); err != nil {
-		panic(err)
-	}
-}
+// func main() {
+// 	if err := fasthttp.ListenAndServe(":8083", ProxyPoolHandler); err != nil {
+// 		panic(err)
+// 	}
+// }
 ```
