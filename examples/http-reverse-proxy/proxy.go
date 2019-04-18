@@ -11,12 +11,10 @@ var (
 	proxy *httputil.ReverseProxy
 )
 
-func init() {
+func main() {
 	URL, _ = url.Parse("http://localhost:8080")
 	proxy = httputil.NewSingleHostReverseProxy(URL)
-}
 
-func main() {
 	http.HandleFunc("/foo", func(w http.ResponseWriter, req *http.Request) {
 		proxy.ServeHTTP(w, req)
 	})

@@ -3,8 +3,8 @@ package proxy
 import "errors"
 
 var (
-	// ErrClosed is the error resulting if the pool is closed via pool.Close().
-	ErrClosed = errors.New("pool is closed")
+	// errClosed is the error resulting if the pool is closed via pool.Close().
+	errClosed = errors.New("pool is closed")
 )
 
 // Pool interface ...
