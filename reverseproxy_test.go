@@ -1,18 +1,12 @@
+// Copyright yeqown The yeqown Author. All rights reserved.
+// Use of this source code is governed by a MIT-style
+// license that can be found in the LICENSE file.
 package proxy
 
 import (
 	"testing"
 )
 
-/*
-goos: darwin
-goarch: amd64
-pkg: github.com/yeqown/fasthttp-reverse-proxy
-BenchmarkNewReverseProxy-4   	200000000	         9.16 ns/op	       0 B/op	       0 allocs/op
-PASS
-ok  	github.com/yeqown/fasthttp-reverse-proxy	2.821s
-Success: Benchmarks passed.
-*/
 func BenchmarkNewReverseProxy(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		proxy := NewReverseProxy("localhost:8080")

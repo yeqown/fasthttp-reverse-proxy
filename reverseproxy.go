@@ -1,3 +1,7 @@
+// Copyright 2018 The yeqown Author. All rights reserved.
+// Use of this source code is governed by a MIT-style
+// license that can be found in the LICENSE file.
+
 package proxy
 
 import (
@@ -17,7 +21,7 @@ func NewReverseProxy(addr string) *ReverseProxy {
 	}
 }
 
-// ReverseProxy ...
+// ReverseProxy reverse handler using fasthttp.HostClient
 type ReverseProxy struct {
 	client *fasthttp.HostClient
 }

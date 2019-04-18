@@ -6,9 +6,9 @@ import (
 )
 
 func main() {
+
 	http.HandleFunc("/foo", func(w http.ResponseWriter, req *http.Request) {
 		ip := req.RemoteAddr
-		// fmt.Println(ip)
 		w.Header().Add("X-Test", "true")
 		fmt.Fprintf(w, "bar: %d, %s", 200, ip)
 	})
