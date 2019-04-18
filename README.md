@@ -5,9 +5,11 @@ reverse http proxy hander based on fasthttp.
 
 ## features:
 
-[x] proxy client has `pool` supported
-[x] faster than golang standard `httputil.ReverseProxy`
-[x] simple warpper of `fasthttp.HostClient` 
+* [x] proxy client has `pool` supported
+
+* [x] faster than golang standard `httputil.ReverseProxy`
+
+* [x] simple warpper of `fasthttp.HostClient` 
 
 ## usage
 
