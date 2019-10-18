@@ -15,7 +15,7 @@ reverse http proxy hander based on fasthttp.
 
 * [use it alone](./examples/fasthttp-reverse-proxy/proxy.go)
 * [use it with pool](./examples/fasthttp-reverse-proxy-with-pool/pool.go)
-
+* [websocket](./examples/ws-fasthttp-reverse-proxy)
 ## contrast
 
 `no proxy`:
