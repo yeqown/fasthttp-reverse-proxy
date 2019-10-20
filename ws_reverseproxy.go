@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/url"
 
-	// "github.com/gorilla/websocket"
 	"github.com/fasthttp/websocket"
 	"github.com/valyala/fasthttp"
 )
@@ -118,7 +117,7 @@ func (w *WSReverseProxy) ServeHTTP(ctx *fasthttp.RequestCtx) {
 		requestHeader.Set("X-Forwarded-Proto", "https")
 	}
 
-	log.Printf("requestHeader: %v", requestHeader)
+	// log.Printf("requestHeader: %v", requestHeader)
 	// Connect to the backend URL, also pass the headers we get from the requst
 	// together with the Forwarded headers we prepared above.
 	// TODO: support multiplexing on the same backend connection instead of
@@ -169,12 +168,11 @@ func (w *WSReverseProxy) ServeHTTP(ctx *fasthttp.RequestCtx) {
 		log.Printf("websocketproxy: couldn't upgrade %s", err)
 		return
 	}
-
-	log.Println("upgrade done with error: ", err)
 }
 
+// replicateWebsocketConn to
+// copy message from src to dst
 func replicateWebsocketConn(dst, src *websocket.Conn, errc chan error) {
-	log.Println("replicateWebsocketConn")
 	for {
 		msgType, msg, err := src.ReadMessage()
 		if err != nil {
@@ -196,6 +194,8 @@ func replicateWebsocketConn(dst, src *websocket.Conn, errc chan error) {
 	}
 }
 
+// wsCopyResponse .
+// to help copy origin websocket response to client
 func wsCopyResponse(dst *fasthttp.Response, src *http.Response) error {
 	for k, vv := range src.Header {
 		for _, v := range vv {
