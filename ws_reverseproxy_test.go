@@ -1,7 +1,9 @@
 package proxy
 
 import (
+	"bytes"
 	"log"
+	"net/http"
 	"testing"
 
 	"github.com/fasthttp/websocket"
@@ -15,8 +17,7 @@ func BenchmarkNewWSReverseProxy(b *testing.B) {
 	}
 }
 
-// TODO: generate fasthttp websocket RequestCtx
-func BenchmarkWSReverseProxy(b *testing.B) {
+func Test_WSReverseProxy(t *testing.T) {
 	upgrader := websocket.FastHTTPUpgrader{}
 	echoHdl := func(ctx *fasthttp.RequestCtx) {
 		err := upgrader.Upgrade(ctx, func(ws *websocket.Conn) {
@@ -43,25 +44,57 @@ func BenchmarkWSReverseProxy(b *testing.B) {
 			return
 		}
 	}
-
-	hdl := func(ctx *fasthttp.RequestCtx) {
-		switch string(ctx.Path()) {
-		case "/echo":
-			echoHdl(ctx)
-		}
-	}
+	// backend server initializing
 	server := fasthttp.Server{
-		Name:    "Name",
-		Handler: hdl,
+		Name: "Name",
+		Handler: func(ctx *fasthttp.RequestCtx) {
+			switch string(ctx.Path()) {
+			case "/echo":
+				echoHdl(ctx)
+			}
+		},
 	}
 
+	// backend websocket server
 	go server.ListenAndServe(":8080")
 
-	ctx := &fasthttp.RequestCtx{}
+	// start websocket proxy server
 	p := NewWSReverseProxy("localhost:8080", "/echo")
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	go fasthttp.ListenAndServe(":8081", func(ctx *fasthttp.RequestCtx) {
 		p.ServeHTTP(ctx)
+	})
+
+	// client
+	conn, resp, err := websocket.DefaultDialer.Dial("ws://localhost:8081", nil)
+	if err != nil {
+		t.Error(err)
+		t.FailNow()
+	}
+
+	t.Log(resp)
+	if resp.StatusCode != http.StatusSwitchingProtocols {
+		t.Error("could not connect to proxy")
+		t.FailNow()
+	}
+
+	// client send
+	sendmsg := []byte("hello")
+	err = conn.WriteMessage(websocket.TextMessage, sendmsg)
+	if err != nil {
+		t.Error(err)
+		t.FailNow()
+	}
+
+	// client read echo message
+	messageType, recvmsg, err := conn.ReadMessage()
+	if err != nil {
+		t.Error(err)
+		t.FailNow()
+	}
+
+	if messageType != websocket.TextMessage || !bytes.Equal(sendmsg, recvmsg) {
+		t.Errorf("recv message not wanted: [%v / %v], [%s / %s]",
+			messageType, websocket.TextMessage, recvmsg, sendmsg)
+		t.FailNow()
 	}
 }
