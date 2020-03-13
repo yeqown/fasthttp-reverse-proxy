@@ -14,3 +14,7 @@
 vendor/
 .vscode/
 testdata
+
+node_modules/
+package-lock.json
+*.prof
