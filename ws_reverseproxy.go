@@ -2,9 +2,7 @@ package proxy
 
 import (
 	"bytes"
-	"fmt"
 	"io"
-	"log"
 	"net"
 	"net/http"
 	"net/url"
@@ -58,12 +56,12 @@ func NewWSReverseProxy(host, path string) *WSReverseProxy {
 // ServeHTTP WSReverseProxy to serve
 func (w *WSReverseProxy) ServeHTTP(ctx *fasthttp.RequestCtx) {
 	if b := websocket.FastHTTPIsWebSocketUpgrade(ctx); b {
-		log.Println("Request is upgrade: ", b)
+		logger.Debugf("Request is upgraded %v", b)
 	}
 
 	var (
 		req      = &ctx.Request
-		res      = &ctx.Response
+		resp     = &ctx.Response
 		dialer   = DefaultDialer
 		upgrader = DefaultUpgrader
 	)
@@ -117,78 +115,85 @@ func (w *WSReverseProxy) ServeHTTP(ctx *fasthttp.RequestCtx) {
 		requestHeader.Set("X-Forwarded-Proto", "https")
 	}
 
-	// log.Printf("requestHeader: %v", requestHeader)
 	// Connect to the backend URL, also pass the headers we get from the requst
 	// together with the Forwarded headers we prepared above.
 	// TODO: support multiplexing on the same backend connection instead of
 	// opening a new TCP connection time for each request. This should be
 	// optional:
 	// http://tools.ietf.org/html/draft-ietf-hybi-websocket-multiplexing-01
-	connBackend, resp, err := dialer.Dial(w.target.String(), requestHeader)
+	connBackend, respBackend, err := dialer.Dial(w.target.String(), requestHeader)
 	if err != nil {
-		log.Printf("websocketproxy: couldn't dial to remote backend url %s", err)
-		if resp != nil {
-			wsCopyResponse(res, resp)
-			// send http.Response to fasthttp.Response
+		logger.Errorf("websocketproxy: couldn't dial to remote backend host=%s, err=%v", w.target.String(), err)
+		logger.Debugf("resp_backent =%v", respBackend)
+		if respBackend != nil {
+			wsCopyResponse(resp, respBackend)
 		} else {
-			ctx.SetStatusCode(http.StatusServiceUnavailable)
-			ctx.WriteString(http.StatusText(http.StatusServiceUnavailable))
+			// ctx.SetStatusCode(http.StatusServiceUnavailable)
+			// ctx.WriteString(http.StatusText(http.StatusServiceUnavailable))
+			ctx.Error(err.Error(), fasthttp.StatusServiceUnavailable)
 		}
 		return
 	}
-
-	errClient := make(chan error, 1)
-	errBackend := make(chan error, 1)
 
 	// Now upgrade the existing incoming request to a WebSocket connection.
 	// Also pass the header that we gathered from the Dial handshake.
 	err = upgrader.Upgrade(ctx, func(connPub *websocket.Conn) {
 		defer connPub.Close()
+		var (
+			errClient  = make(chan error, 1)
+			errBackend = make(chan error, 1)
+			message    string
+		)
 
-		log.Println("upgrade handler worked")
+		logger.Debug("upgrade handler working")
+		go replicateWebsocketConn(connPub, connBackend, errClient)  // response
+		go replicateWebsocketConn(connBackend, connPub, errBackend) // request
 
-		go replicateWebsocketConn(connPub, connBackend, errClient)
-		go replicateWebsocketConn(connBackend, connPub, errBackend)
-
-		var message string
 		for {
 			select {
 			case err = <-errClient:
-				message = "websocketproxy: Error when copying from backend to client: %v"
+				message = "websocketproxy: Error when copying response: %v"
 			case err = <-errBackend:
-				message = "websocketproxy: Error when copying from client to backend: %v"
+				message = "websocketproxy: Error when copying request: %v"
 			}
-			if e, ok := err.(*websocket.CloseError); !ok || e.Code == websocket.CloseAbnormalClosure {
-				log.Printf(message, err)
+
+			// log error except '*websocket.CloseError'
+			if _, ok := err.(*websocket.CloseError); !ok {
+				logger.Errorf(message, err)
 			}
 		}
 	})
 
 	if err != nil {
-		log.Printf("websocketproxy: couldn't upgrade %s", err)
+		logger.Errorf("websocketproxy: couldn't upgrade %s", err)
 		return
 	}
 }
 
 // replicateWebsocketConn to
 // copy message from src to dst
-func replicateWebsocketConn(dst, src *websocket.Conn, errc chan error) {
+func replicateWebsocketConn(dst, src *websocket.Conn, errChan chan error) {
 	for {
 		msgType, msg, err := src.ReadMessage()
 		if err != nil {
-			m := websocket.FormatCloseMessage(websocket.CloseNormalClosure, fmt.Sprintf("%v", err))
-			if e, ok := err.(*websocket.CloseError); ok {
-				if e.Code != websocket.CloseNoStatusReceived {
-					m = websocket.FormatCloseMessage(e.Code, e.Text)
-				}
+			// true: handle websocket close error
+			logger.Debugf("src.ReadMessage failed, msgType=%d, msg=%s, err=%v", msgType, msg, err)
+			if ce, ok := err.(*websocket.CloseError); ok {
+				msg = websocket.FormatCloseMessage(ce.Code, ce.Text)
+			} else {
+				logger.Errorf("src.ReadMessage failed, err=%v", err)
+				msg = websocket.FormatCloseMessage(websocket.CloseAbnormalClosure, err.Error())
 			}
-			errc <- err
-			dst.WriteMessage(websocket.CloseMessage, m)
+
+			errChan <- err
+			dst.WriteMessage(websocket.CloseMessage, msg)
 			break
 		}
+
 		err = dst.WriteMessage(msgType, msg)
 		if err != nil {
-			errc <- err
+			logger.Errorf("dst.WriteMessage failed, err=%v", err)
+			errChan <- err
 			break
 		}
 	}

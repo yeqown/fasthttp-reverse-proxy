@@ -2,7 +2,6 @@ package main
 
 import (
 	"log"
-	"text/template"
 
 	"github.com/valyala/fasthttp"
 	proxy "github.com/yeqown/fasthttp-reverse-proxy"
@@ -18,31 +17,31 @@ func ProxyHandler(ctx *fasthttp.RequestCtx) {
 	case "/echo":
 		proxyServer.ServeHTTP(ctx)
 	case "/":
-		homeView(ctx)
+		// homeView(ctx)
+		fasthttp.ServeFileUncompressed(ctx, "./index.html")
 	default:
 		ctx.Error("Unsupported path", fasthttp.StatusNotFound)
 	}
 }
 
-func homeView(ctx *fasthttp.RequestCtx) {
-	ctx.SetContentType("text/html")
-	homeTemplate.Execute(ctx, nil)
-}
+// func homeView(ctx *fasthttp.RequestCtx) {
+// 	ctx.SetContentType("text/html")
+// 	fd, err := os.Open("./index.html")
+// 	if err != nil {
+// 		log.Printf("homeView err=%v", err)
+// 		ctx.Write(p)
+// 	}
+// 	// buf := bytes.NewBuffer(nil)
+// 	dat, err := ioutil.ReadAll(fd)
+// 	if err != nil {
+// 		log.Printf("homeView err=%v", err)
+// 	}
+// 	ctx.Write(dat)
+// }
 
 func main() {
+	log.Println("serving on: 8081")
 	if err := fasthttp.ListenAndServe(":8081", ProxyHandler); err != nil {
 		log.Fatal(err)
 	}
 }
-
-var homeTemplate = template.Must(template.New("").Parse(`
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-</head>
-<body>
-	<h1>WS Porxy Body</h1>
-</body>
-</html>
-`))
