@@ -27,7 +27,7 @@ func Test_chanPool(t *testing.T) {
 		t.Fatalf("could not get one proxy form pool, proxy is nil")
 	}
 
-	t.Logf("proxy addr: %v and addr is: %s", p, p.client.Addr)
+	t.Logf("proxy addr: %v and addr is: %s", p, p.getClient().Addr)
 }
 
 func BenchmarkNewReverseProxyWithPool(b *testing.B) {
@@ -47,7 +47,7 @@ func BenchmarkNewReverseProxyWithPool(b *testing.B) {
 		if proxy == nil {
 			b.Fatalf("could not get from pool, proxy is nil")
 		}
-		if proxy.client == nil {
+		if proxy.getClient() == nil {
 			b.Fatalf("could not get from pool, client is nil")
 		}
 	}

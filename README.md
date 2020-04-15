@@ -13,6 +13,8 @@ reverse http proxy hander based on fasthttp.
 
 * [x] websocket proxy
 
+* [x] support balance distibute based `rounddobin`
+
 ## quick start
 
 #### HTTP
@@ -26,6 +28,15 @@ import (
 
 var (
 	proxyServer = proxy.NewReverseProxy("localhost:8080")
+
+	// use with balancer
+	// weights = map[string]proxy.Weight{
+	// 	"localhost:8080": 20,
+	// 	"localhost:8081": 30,
+	// 	"localhost:8082": 50,
+	// }
+	// proxyServer = proxy.NewReverseProxy("", proxy.WithBalancer(weights))
+
 )
 
 // ProxyHandler ... fasthttp.RequestHandler func
