@@ -27,7 +27,7 @@ func NewBalancer(ws []W) IBalancer {
 	rrb := roundrobinBalancer{
 		// choices:      ws,
 		mutex:        sync.Mutex{},
-		weights:      make(map[int]int),
+		weights:      make([]int, len(ws)),
 		maxWeight:    0,
 		maxGCD:       1,
 		lenOfWeights: len(ws),
@@ -53,12 +53,12 @@ func NewBalancer(ws []W) IBalancer {
 type roundrobinBalancer struct {
 	// choices      []W
 	mutex        sync.Mutex
-	weights      map[int]int // weight
-	maxWeight    int         // 0
-	maxGCD       int         // 1
-	lenOfWeights int         // 0
-	i            int         // last choice, -1
-	cw           int         // current weight, 0
+	weights      []int // weight
+	maxWeight    int   // 0
+	maxGCD       int   // 1
+	lenOfWeights int   // 0
+	i            int   // last choice, -1
+	cw           int   // current weight, 0
 }
 
 // Distribute to implement roundrobin algorithm

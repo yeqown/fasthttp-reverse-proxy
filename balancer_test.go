@@ -1,6 +1,9 @@
 package proxy
 
-import "testing"
+import (
+	"sync"
+	"testing"
+)
 
 func Test_gcd(t *testing.T) {
 	a := 10
@@ -49,5 +52,28 @@ func Test_balancer(t *testing.T) {
 		count[idx]++
 	}
 
+	t.Log(count)
+}
+
+func Test_balancer_concurrent(t *testing.T) {
+	ws := []W{Weight(20), Weight(30), Weight(50)}
+	bla := NewBalancer(ws)
+
+	count := make(map[int]int)
+	m := sync.Mutex{}
+	wg := sync.WaitGroup{}
+	wg.Add(1000)
+
+	for i := 0; i < 1000; i++ {
+		go func() {
+			defer wg.Done()
+			idx := bla.Distribute()
+			m.Lock()
+			count[idx]++
+			m.Unlock()
+		}()
+	}
+
+	wg.Wait()
 	t.Log(count)
 }

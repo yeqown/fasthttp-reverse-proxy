@@ -17,7 +17,7 @@ reverse http proxy hander based on fasthttp.
 
 ## quick start
 
-#### HTTP
+#### HTTP (with balancer option)
 ```go
 import (
 	"log"
