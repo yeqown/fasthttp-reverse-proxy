@@ -48,7 +48,22 @@ Statistics        Avg      Stdev        Max
   Throughput:     6.31MB/s%
 ```
 
-`yeqown.fasthttp.ReverseProxyWithPool`:
+``yeqown.fasthttp.ReverseProxy (WithBalancer)`:`
+```sh
+➜  examples git:(feat-LB-support) ✗ bombardier -c 125 -t 10s localhost:8081/foo
+Bombarding http://localhost:8081/foo for 10s using 125 connection(s)
+
+Done!
+Statistics        Avg      Stdev        Max
+  Reqs/sec     12433.93    4055.02   20192.45
+  Latency       10.12ms     8.81ms   242.13ms
+  HTTP codes:
+    1xx - 0, 2xx - 123328, 3xx - 0, 4xx - 0, 5xx - 139 (too many sockets)
+    others - 0
+  Throughput:     2.81MB/s%
+```
+
+`yeqown.fasthttp.ReverseProxyWithPool(init=100, max=200)`:
 
 ```sh
 ➜  ~ bombardier -c 125 -t 10s localhost:8083/foo

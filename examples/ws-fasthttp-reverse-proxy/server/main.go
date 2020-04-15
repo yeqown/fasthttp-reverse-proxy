@@ -8,7 +8,9 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-var upgrader = websocket.FastHTTPUpgrader{}
+var upgrader = websocket.FastHTTPUpgrader{
+	CheckOrigin: func(ctx *fasthttp.RequestCtx) bool { return true },
+}
 
 func echoView(ctx *fasthttp.RequestCtx) {
 	err := upgrader.Upgrade(ctx, func(ws *websocket.Conn) {

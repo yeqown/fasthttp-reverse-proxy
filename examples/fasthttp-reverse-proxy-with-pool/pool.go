@@ -14,7 +14,7 @@ var (
 
 // ProxyPoolHandler ...
 func ProxyPoolHandler(ctx *fasthttp.RequestCtx) {
-	proxyServer, err := pool.Get("localhost:8080")
+	proxyServer, err := pool.Get("localhost:9090")
 	if err != nil {
 		log.Println("ProxyPoolHandler got an error: ", err)
 		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
@@ -30,7 +30,7 @@ func factory(hostAddr string) (*proxy.ReverseProxy, error) {
 }
 
 func main() {
-	initialCap, maxCap := 100, 200
+	initialCap, maxCap := 100, 1000
 	pool, err = proxy.NewChanPool(initialCap, maxCap, factory)
 	if err := fasthttp.ListenAndServe(":8083", ProxyPoolHandler); err != nil {
 		panic(err)

@@ -6,24 +6,111 @@ package proxy
 
 import (
 	"net"
+	"net/http"
 
+	"github.com/imdario/mergo"
 	"github.com/valyala/fasthttp"
 )
 
-// NewReverseProxy ...
-func NewReverseProxy(addr string) *ReverseProxy {
-	client := &fasthttp.HostClient{
-		Addr: addr,
+// var _ Proxier = &ReverseProxy{}
+
+// Option . contains option field of ReverseProxy
+type Option struct {
+	OpenBalance bool
+	Ws          []W
+	Addrs       []string
+}
+
+// WithBalancer .
+func WithBalancer(addrWeights map[string]Weight) Option {
+	ws := make([]W, 0, len(addrWeights))
+	addrs := make([]string, 0, len(addrWeights))
+	for k, v := range addrWeights {
+		ws = append(ws, v)
+		addrs = append(addrs, k)
 	}
 
-	return &ReverseProxy{
-		client: client,
+	return Option{
+		OpenBalance: true,
+		Ws:          ws,
+		Addrs:       addrs,
 	}
 }
 
 // ReverseProxy reverse handler using fasthttp.HostClient
+// TODO: support https config
 type ReverseProxy struct {
-	client *fasthttp.HostClient
+	oldAddr string                 // old addr to keep old API working as usual
+	bla     IBalancer              // balancer
+	ws      []W                    // weights of clients, releated by idx
+	clients []*fasthttp.HostClient // clients
+	opt     *Option                // opt contains finnally option to open reverseProxy
+}
+
+// NewReverseProxy create an ReverseProxy with options
+func NewReverseProxy(oldAddr string, opts ...Option) *ReverseProxy {
+	dstOption := &Option{
+		OpenBalance: false,
+		Ws:          nil,
+		Addrs:       nil,
+	}
+
+	// merge opts into dstOption
+	for _, opt := range opts {
+		if err := mergo.Map(dstOption, opt, mergo.WithOverride); err != nil {
+			panic(err)
+		}
+	}
+
+	// fmt.Printf("dst opt=%+v opts=%+v\n", dstOption, opts)
+
+	// apply an new object of `ReverseProxy`
+	proxy := ReverseProxy{
+		oldAddr: oldAddr,
+		bla:     nil,
+		// ws:      make([]W, 0, 1),
+		// clients: make([]*fasthttp.HostClient, 0, 1),
+		opt: dstOption,
+	}
+
+	(&proxy).init()
+	return &proxy
+}
+
+func (p *ReverseProxy) init() {
+	if p.opt.OpenBalance {
+		p.oldAddr = ""
+		p.clients = make([]*fasthttp.HostClient, len(p.opt.Addrs))
+		p.ws = p.opt.Ws
+		p.bla = NewBalancer(p.ws)
+
+		for idx, addr := range p.opt.Addrs {
+			p.clients[idx] = &fasthttp.HostClient{Addr: addr}
+		}
+
+		return
+	}
+
+	// not open balancer
+	p.ws = append(p.ws, Weight(100))
+	p.bla = nil
+	p.clients = append(p.clients,
+		&fasthttp.HostClient{Addr: p.oldAddr})
+}
+
+func (p *ReverseProxy) getClient() *fasthttp.HostClient {
+	if p.clients == nil {
+		// closed
+		panic("ReverseProxy has been closed")
+	}
+
+	if p.bla != nil {
+		// bla has been opened
+		idx := p.bla.Distribute()
+		return p.clients[idx]
+	}
+
+	return p.clients[0]
 }
 
 // ServeHTTP ReverseProxy to serve
@@ -33,8 +120,8 @@ func (p *ReverseProxy) ServeHTTP(ctx *fasthttp.RequestCtx) {
 	res := &ctx.Response
 
 	// prepare request(replace headers and some URL host)
-	if clientIP, _, err := net.SplitHostPort(ctx.RemoteAddr().String()); err == nil {
-		req.Header.Add("X-Forwarded-For", clientIP)
+	if ip, _, err := net.SplitHostPort(ctx.RemoteAddr().String()); err == nil {
+		req.Header.Add("X-Forwarded-For", ip)
 	}
 
 	// to save all response header
@@ -55,13 +142,19 @@ func (p *ReverseProxy) ServeHTTP(ctx *fasthttp.RequestCtx) {
 		req.Header.Del(h)
 	}
 
-	ctx.Logger().Printf("recv a requets to proxy to: %s", p.client.Addr)
-	if err := p.client.Do(req, res); err != nil {
-		ctx.Logger().Printf("could not proxy: %v\n", err)
+	pc := p.getClient()
+	if debug {
+		ctx.Logger().Printf("recv a requets to proxy to: %s", pc.Addr)
+	}
+
+	if err := pc.Do(req, res); err != nil {
+		ctx.Logger().Printf("[ERROR] could not proxy: %v\n", err)
+		res.SetStatusCode(http.StatusInternalServerError)
+		res.SetBody([]byte(err.Error()))
 		return
 	}
 
-	// response to client
+	// write response headers
 	for _, h := range hopHeaders {
 		res.Header.Del(h)
 	}
@@ -72,18 +165,25 @@ func (p *ReverseProxy) ServeHTTP(ctx *fasthttp.RequestCtx) {
 
 // SetClient ...
 func (p *ReverseProxy) SetClient(addr string) *ReverseProxy {
-	p.client.Addr = addr
+	for idx := range p.clients {
+		p.clients[idx].Addr = addr
+	}
 	return p
 }
 
 // Reset ...
 func (p *ReverseProxy) Reset() {
-	p.client.Addr = ""
+	for idx := range p.clients {
+		p.clients[idx].Addr = ""
+	}
 }
 
-// Close ...
+// Close ... clear and release
 func (p *ReverseProxy) Close() {
-	p.client = nil
+	p.clients = nil
+	p.opt = nil
+	p.bla = nil
+	p.ws = nil
 	p = nil
 }
 
@@ -113,13 +213,13 @@ func cloneRequest(src *fasthttp.Request) *fasthttp.Request {
 // obsoleted RFC 2616 (section 13.5.1) and are used for backward
 // compatibility.
 var hopHeaders = []string{
-	"Connection",
-	"Proxy-Connection", // non-standard but still sent by libcurl and rejected by e.g. google
-	"Keep-Alive",
-	"Proxy-Authenticate",
-	"Proxy-Authorization",
-	"Te",      // canonicalized version of "TE"
-	"Trailer", // not Trailers per URL above; https://www.rfc-editor.org/errata_search.php?eid=4522
-	"Transfer-Encoding",
-	"Upgrade",
+	"Connection",          // Connection
+	"Proxy-Connection",    // non-standard but still sent by libcurl and rejected by e.g. google
+	"Keep-Alive",          // Keep-Alive
+	"Proxy-Authenticate",  // Porxy-Authenticate
+	"Proxy-Authorization", // Porxy-Authorization
+	"Te",                  // canonicalized version of "TE"
+	"Trailer",             // not Trailers per URL above; https://www.rfc-editor.org/errata_search.php?eid=4522
+	"Transfer-Encoding",   // Transfer-Encoding
+	"Upgrade",             // Upgrade
 }
