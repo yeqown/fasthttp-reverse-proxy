@@ -8,11 +8,11 @@ import (
 )
 
 func BenchmarkNewReverseProxy(b *testing.B) {
+	proxy := NewReverseProxy("localhost:8080")
+	if proxy == nil {
+		b.Fatalf("could not get from pool, proxy is nil")
+	}
 	for i := 0; i < b.N; i++ {
-		proxy := NewReverseProxy("localhost:8080")
-		if proxy == nil {
-			b.Fatalf("could not get from pool, proxy is nil")
-		}
 		if proxy.getClient() == nil {
 			b.Fatalf("could not get from pool, client is nil")
 		}
@@ -20,18 +20,17 @@ func BenchmarkNewReverseProxy(b *testing.B) {
 	}
 }
 
-// TODO: add benchmark test
 func BenchmarkNewReverseProxyWithBla(b *testing.B) {
 	weigths := map[string]Weight{
 		"localhost:8080": 10,
 		"localhost:8081": 30,
 		"localhost:8082": 60,
 	}
+	proxy := NewReverseProxy("", WithBalancer(weigths))
+	if proxy == nil {
+		b.Fatalf("could not get from pool, proxy is nil")
+	}
 	for i := 0; i < b.N; i++ {
-		proxy := NewReverseProxy("", WithBalancer(weigths))
-		if proxy == nil {
-			b.Fatalf("could not get from pool, proxy is nil")
-		}
 		if proxy.getClient() == nil {
 			b.Fatalf("could not get from pool, client is nil")
 		}
