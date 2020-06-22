@@ -147,6 +147,9 @@ func (p *ReverseProxy) ServeHTTP(ctx *fasthttp.RequestCtx) {
 		ctx.Logger().Printf("recv a requets to proxy to: %s", pc.Addr)
 	}
 
+	// assign the host to support virtual hosting, aka shared web hosting (one IP, multiple domains)
+	req.SetHost(pc.Addr)
+
 	if err := pc.Do(req, res); err != nil {
 		ctx.Logger().Printf("[ERROR] could not proxy: %v\n", err)
 		res.SetStatusCode(http.StatusInternalServerError)
