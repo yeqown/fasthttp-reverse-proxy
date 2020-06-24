@@ -125,15 +125,15 @@ func (p *ReverseProxy) ServeHTTP(ctx *fasthttp.RequestCtx) {
 	}
 
 	// to save all response header
-	resHeaders := make(map[string]string)
-	res.Header.VisitAll(func(k, v []byte) {
-		key := string(k)
-		value := string(v)
-		if val, ok := resHeaders[key]; ok {
-			resHeaders[key] = val + "," + value
-		}
-		resHeaders[key] = value
-	})
+	// resHeaders := make(map[string]string)
+	// res.Header.VisitAll(func(k, v []byte) {
+	// 	key := string(k)
+	// 	value := string(v)
+	// 	if val, ok := resHeaders[key]; ok {
+	// 		resHeaders[key] = val + "," + value
+	// 	}
+	// 	resHeaders[key] = value
+	// })
 
 	for _, h := range hopHeaders {
 		// if h == "Te" && hv == "trailers" {
@@ -144,23 +144,26 @@ func (p *ReverseProxy) ServeHTTP(ctx *fasthttp.RequestCtx) {
 
 	pc := p.getClient()
 	if debug {
-		ctx.Logger().Printf("recv a requets to proxy to: %s", pc.Addr)
+		logger.Infof("recv a requets to proxy to: %s", pc.Addr)
 	}
 
 	if err := pc.Do(req, res); err != nil {
-		ctx.Logger().Printf("[ERROR] could not proxy: %v\n", err)
+		logger.Errorf("could not proxy: %v\n", err)
 		res.SetStatusCode(http.StatusInternalServerError)
 		res.SetBody([]byte(err.Error()))
 		return
 	}
 
+	logger.Debugf("response headers = %s", res.Header.String())
 	// write response headers
 	for _, h := range hopHeaders {
 		res.Header.Del(h)
 	}
-	for k, v := range resHeaders {
-		res.Header.Set(k, v)
-	}
+
+	// logger.Debugf("response headers = %s", resHeaders)
+	// for k, v := range resHeaders {
+	// 	res.Header.Set(k, v)
+	// }
 }
 
 // SetClient ...
@@ -187,25 +190,27 @@ func (p *ReverseProxy) Close() {
 	p = nil
 }
 
-func copyResponse(src *fasthttp.Response, dst *fasthttp.Response) {
-	src.CopyTo(dst)
-}
-
-func copyRequest(src *fasthttp.Request, dst *fasthttp.Request) {
-	src.CopyTo(dst)
-}
-
-func cloneResponse(src *fasthttp.Response) *fasthttp.Response {
-	dst := new(fasthttp.Response)
-	copyResponse(src, dst)
-	return dst
-}
-
-func cloneRequest(src *fasthttp.Request) *fasthttp.Request {
-	dst := new(fasthttp.Request)
-	copyRequest(src, dst)
-	return dst
-}
+//
+//func copyResponse(src *fasthttp.Response, dst *fasthttp.Response) {
+//	src.CopyTo(dst)
+//	logger.Debugf("response header=%v", src.Header)
+//}
+//
+//func copyRequest(src *fasthttp.Request, dst *fasthttp.Request) {
+//	src.CopyTo(dst)
+//}
+//
+//func cloneResponse(src *fasthttp.Response) *fasthttp.Response {
+//	dst := new(fasthttp.Response)
+//	copyResponse(src, dst)
+//	return dst
+//}
+//
+//func cloneRequest(src *fasthttp.Request) *fasthttp.Request {
+//	dst := new(fasthttp.Request)
+//	copyRequest(src, dst)
+//	return dst
+//}
 
 // Hop-by-hop headers. These are removed when sent to the backend.
 // As of RFC 7230, hop-by-hop headers are required to appear in the
@@ -216,8 +221,8 @@ var hopHeaders = []string{
 	"Connection",          // Connection
 	"Proxy-Connection",    // non-standard but still sent by libcurl and rejected by e.g. google
 	"Keep-Alive",          // Keep-Alive
-	"Proxy-Authenticate",  // Porxy-Authenticate
-	"Proxy-Authorization", // Porxy-Authorization
+	"Proxy-Authenticate",  // Proxy-Authenticate
+	"Proxy-Authorization", // Proxy-Authorization
 	"Te",                  // canonicalized version of "TE"
 	"Trailer",             // not Trailers per URL above; https://www.rfc-editor.org/errata_search.php?eid=4522
 	"Transfer-Encoding",   // Transfer-Encoding

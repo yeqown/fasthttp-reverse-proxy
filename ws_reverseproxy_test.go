@@ -56,13 +56,22 @@ func Test_WSReverseProxy(t *testing.T) {
 	}
 
 	// backend websocket server
-	go server.ListenAndServe(":8080")
+	go func() {
+		if err := server.ListenAndServe(":8080"); err != nil {
+			logger.Errorf("websocket backend server `ListenAndServe` quit, err=%v", err)
+		}
+	}()
 
 	// start websocket proxy server
 	p := NewWSReverseProxy("localhost:8080", "/echo")
-	go fasthttp.ListenAndServe(":8081", func(ctx *fasthttp.RequestCtx) {
-		p.ServeHTTP(ctx)
-	})
+	go func() {
+		reqHdl := func(ctx *fasthttp.RequestCtx) {
+			p.ServeHTTP(ctx)
+		}
+		if err := fasthttp.ListenAndServe(":8081", reqHdl); err != nil {
+			logger.Errorf("websocket proxy server `ListenAndServe` quit, err=%v", err)
+		}
+	}()
 
 	// client
 	conn, resp, err := websocket.DefaultDialer.Dial("ws://localhost:8081", nil)

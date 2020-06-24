@@ -61,14 +61,14 @@ type roundrobinBalancer struct {
 	cw           int   // current weight, 0
 }
 
-// Distribute to implement roundrobin algorithm
-// it returns the idx of the choicing in ws ([]W)
-// TODO: changing to nolock call
+// Distribute to implement round robin algorithm
+// it returns the idx of the choosing in ws ([]W)
+// TODO: changing to no lock call
 func (rrb *roundrobinBalancer) Distribute() int {
 	rrb.mutex.Lock()
 	defer rrb.mutex.Unlock()
 
-	for true {
+	for {
 		rrb.i = (rrb.i + 1) % rrb.lenOfWeights
 
 		if rrb.i == 0 {
@@ -85,7 +85,6 @@ func (rrb *roundrobinBalancer) Distribute() int {
 			return rrb.i
 		}
 	}
-	return 0
 }
 
 // gcd

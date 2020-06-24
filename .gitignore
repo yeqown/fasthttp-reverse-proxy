@@ -13,6 +13,7 @@
 *.out
 vendor/
 .vscode/
+.idea/
 testdata
 
 node_modules/

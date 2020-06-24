@@ -126,7 +126,9 @@ func (w *WSReverseProxy) ServeHTTP(ctx *fasthttp.RequestCtx) {
 		logger.Errorf("websocketproxy: couldn't dial to remote backend host=%s, err=%v", w.target.String(), err)
 		logger.Debugf("resp_backent =%v", respBackend)
 		if respBackend != nil {
-			wsCopyResponse(resp, respBackend)
+			if err := wsCopyResponse(resp, respBackend); err != nil {
+				logger.Errorf("could not finish wsCopyResponse, err=%v", err)
+			}
 		} else {
 			// ctx.SetStatusCode(http.StatusServiceUnavailable)
 			// ctx.WriteString(http.StatusText(http.StatusServiceUnavailable))
@@ -186,7 +188,9 @@ func replicateWebsocketConn(dst, src *websocket.Conn, errChan chan error) {
 			}
 
 			errChan <- err
-			dst.WriteMessage(websocket.CloseMessage, msg)
+			if err = dst.WriteMessage(websocket.CloseMessage, msg); err != nil {
+				logger.Errorf("write close message failed, err=%v", err)
+			}
 			break
 		}
 

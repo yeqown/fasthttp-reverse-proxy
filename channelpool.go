@@ -101,6 +101,7 @@ func (p *chanPool) Get(addr string) (*ReverseProxy, error) {
 	// method) that puts the connection back to the pool if it's closed.
 	select {
 	case proxy := <-p.reverseProxyChan:
+		// FIXME: judge empty proxy correctly
 		if &proxy == nil {
 			return nil, errClosed
 		}
