@@ -5,11 +5,16 @@
 package proxy
 
 import (
+	"crypto/tls"
 	"net"
 	"net/http"
 
 	"github.com/imdario/mergo"
 	"github.com/valyala/fasthttp"
+)
+
+const (
+	_fasthttpHostClientName = "reverse-proxy"
 )
 
 // var _ Proxier = &ReverseProxy{}
@@ -19,6 +24,7 @@ type Option struct {
 	OpenBalance bool
 	Ws          []W
 	Addrs       []string
+	tlsConfig   *tls.Config
 }
 
 // WithBalancer .
@@ -37,14 +43,21 @@ func WithBalancer(addrWeights map[string]Weight) Option {
 	}
 }
 
+func WithTLS() Option {
+	return Option{
+		tlsConfig: &tls.Config{
+			InsecureSkipVerify: true,
+		},
+	}
+}
+
 // ReverseProxy reverse handler using fasthttp.HostClient
-// TODO: support https config
 type ReverseProxy struct {
 	oldAddr string                 // old addr to keep old API working as usual
 	bla     IBalancer              // balancer
-	ws      []W                    // weights of clients, releated by idx
+	ws      []W                    // weights of clients, related by idx
 	clients []*fasthttp.HostClient // clients
-	opt     *Option                // opt contains finnally option to open reverseProxy
+	opt     *Option                // opt contains finally option to open reverseProxy
 }
 
 // NewReverseProxy create an ReverseProxy with options
@@ -77,15 +90,19 @@ func NewReverseProxy(oldAddr string, opts ...Option) *ReverseProxy {
 	return &proxy
 }
 
+// initialize the ReverseProxy with options,
+// if opt.OpenBalance is true then create a balancer to ReverseProxy
+// else just
 func (p *ReverseProxy) init() {
 	if p.opt.OpenBalance {
+		// config balancer
 		p.oldAddr = ""
 		p.clients = make([]*fasthttp.HostClient, len(p.opt.Addrs))
 		p.ws = p.opt.Ws
 		p.bla = NewBalancer(p.ws)
 
 		for idx, addr := range p.opt.Addrs {
-			p.clients[idx] = &fasthttp.HostClient{Addr: addr}
+			p.clients[idx] = &fasthttp.HostClient{Addr: addr, Name: _fasthttpHostClientName}
 		}
 
 		return
@@ -95,7 +112,7 @@ func (p *ReverseProxy) init() {
 	p.ws = append(p.ws, Weight(100))
 	p.bla = nil
 	p.clients = append(p.clients,
-		&fasthttp.HostClient{Addr: p.oldAddr})
+		&fasthttp.HostClient{Addr: p.oldAddr, Name: _fasthttpHostClientName})
 }
 
 func (p *ReverseProxy) getClient() *fasthttp.HostClient {
