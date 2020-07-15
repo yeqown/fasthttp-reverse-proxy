@@ -66,6 +66,7 @@ func NewReverseProxy(oldAddr string, opts ...Option) *ReverseProxy {
 		OpenBalance: false,
 		Ws:          nil,
 		Addrs:       nil,
+		tlsConfig:   nil,
 	}
 
 	// merge opts into dstOption
@@ -73,9 +74,13 @@ func NewReverseProxy(oldAddr string, opts ...Option) *ReverseProxy {
 		if err := mergo.Map(dstOption, opt, mergo.WithOverride); err != nil {
 			panic(err)
 		}
+
+		if opt.tlsConfig != nil {
+			dstOption.tlsConfig = opt.tlsConfig
+		}
 	}
 
-	// fmt.Printf("dst opt=%+v opts=%+v\n", dstOption, opts)
+	logger.Debugf("dst opt=%+v opts=%+v\n", dstOption, opts)
 
 	// apply an new object of `ReverseProxy`
 	proxy := ReverseProxy{
@@ -102,7 +107,11 @@ func (p *ReverseProxy) init() {
 		p.bla = NewBalancer(p.ws)
 
 		for idx, addr := range p.opt.Addrs {
-			p.clients[idx] = &fasthttp.HostClient{Addr: addr, Name: _fasthttpHostClientName}
+			p.clients[idx] = &fasthttp.HostClient{
+				Addr:      addr,
+				Name:      _fasthttpHostClientName,
+				TLSConfig: p.opt.tlsConfig,
+			}
 		}
 
 		return
@@ -112,7 +121,11 @@ func (p *ReverseProxy) init() {
 	p.ws = append(p.ws, Weight(100))
 	p.bla = nil
 	p.clients = append(p.clients,
-		&fasthttp.HostClient{Addr: p.oldAddr, Name: _fasthttpHostClientName})
+		&fasthttp.HostClient{
+			Addr:      p.oldAddr,
+			Name:      _fasthttpHostClientName,
+			TLSConfig: p.opt.tlsConfig,
+		})
 }
 
 func (p *ReverseProxy) getClient() *fasthttp.HostClient {
@@ -166,6 +179,8 @@ func (p *ReverseProxy) ServeHTTP(ctx *fasthttp.RequestCtx) {
 
 	// assign the host to support virtual hosting, aka shared web hosting (one IP, multiple domains)
 	req.SetHost(pc.Addr)
+
+	logger.Debugf("pc with tlsConfig=%+v", pc.TLSConfig)
 
 	if err := pc.Do(req, res); err != nil {
 		logger.Errorf("could not proxy: %v\n", err)

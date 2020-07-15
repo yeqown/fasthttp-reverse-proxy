@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"flag"
 	"fmt"
 	"net/http"
@@ -12,7 +13,9 @@ var (
 
 func main() {
 	flag.Parse()
-	http.HandleFunc("/foo", func(w http.ResponseWriter, req *http.Request) {
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/foo", func(w http.ResponseWriter, req *http.Request) {
 		fmt.Println("a request incoming")
 		ip := req.RemoteAddr
 		w.Header().Add("X-Test", "true")
@@ -20,8 +23,16 @@ func main() {
 	})
 
 	addr := fmt.Sprintf(":%d", *port)
-	if err := http.ListenAndServeTLS(
-		addr, "../localhost.crt", "../localhost.key", nil); err != nil {
+	svr := http.Server{
+		Addr:    addr,
+		Handler: mux,
+		TLSConfig: &tls.Config{
+			InsecureSkipVerify: true, //忽略对客户端的认证
+		},
+	}
+
+	if err := svr.
+		ListenAndServeTLS("../localhost.crt", "../localhost.key"); err != nil {
 		panic(err)
 	}
 }
