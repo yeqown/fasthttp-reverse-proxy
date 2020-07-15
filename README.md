@@ -101,3 +101,9 @@ func main() {
 * [standard httputil.ReverseProxy](https://golang.org/pkg/net/http/httputil/#ReverseProxy)
 * [fasthttp/websocket](https://github.com/fasthttp/websocket)
 * [koding/websocketproxy](https://github.com/koding/websocketproxy)
+
+## Thanks
+
+<a href="https://www.jetbrains.com/?from=fasthttp-reverse-proxy" _blank="#">
+    <img src="https://www.jetbrains.com/company/brand/img/jetbrains_logo.png" width="100" alt="JetBrains"/>
+</a>
