@@ -5,8 +5,8 @@ import (
 )
 
 var (
-	debug  bool = true
-	logger      = log.NewLogger()
+	debug     = true
+	logger, _ = log.NewLogger()
 )
 
 // SetProduction .
