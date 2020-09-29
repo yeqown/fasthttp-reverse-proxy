@@ -8,7 +8,8 @@ import (
 )
 
 var (
-	proxyServer = proxy.NewReverseProxy("localhost:8080", proxy.WithTLS())
+	proxyServer = proxy.NewReverseProxy("127.0.0.1:8080",
+		proxy.WithTLS("./selfsigned.crt", "./selfsigned.key"))
 )
 
 // ProxyHandler ... fasthttp.RequestHandler func
