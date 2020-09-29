@@ -5,11 +5,9 @@
 package proxy
 
 import (
-	"crypto/tls"
 	"net"
 	"net/http"
 
-	"github.com/imdario/mergo"
 	"github.com/valyala/fasthttp"
 )
 
@@ -17,90 +15,36 @@ const (
 	_fasthttpHostClientName = "reverse-proxy"
 )
 
-// var _ Proxier = &ReverseProxy{}
-
-// Option . contains option field of ReverseProxy
-type Option struct {
-	OpenBalance bool
-	Ws          []W
-	Addrs       []string
-	tlsConfig   *tls.Config
-}
-
-// WithBalancer .
-func WithBalancer(addrWeights map[string]Weight) Option {
-	ws := make([]W, 0, len(addrWeights))
-	addrs := make([]string, 0, len(addrWeights))
-	for k, v := range addrWeights {
-		ws = append(ws, v)
-		addrs = append(addrs, k)
-	}
-
-	return Option{
-		OpenBalance: true,
-		Ws:          ws,
-		Addrs:       addrs,
-	}
-}
-
-// WithTLS build tls.Config with server certFile and keyFile.
-// tlsConfig is nil as default
-func WithTLS(certFile, keyFile string) Option {
-	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
-	if err != nil {
-		panic("" + err.Error())
-	}
-
-	return WithCustomTLSConfig(&tls.Config{
-		Certificates: []tls.Certificate{cert},
-	})
-}
-
-// WithCustomTLSConfig specify the tlsConfig to Option
-func WithCustomTLSConfig(tlsConfig *tls.Config) Option {
-	return Option{
-		tlsConfig: tlsConfig,
-	}
-}
-
 // ReverseProxy reverse handler using fasthttp.HostClient
 type ReverseProxy struct {
-	oldAddr string                 // old addr to keep old API working as usual
-	bla     IBalancer              // balancer
-	ws      []W                    // weights of clients, related by idx
-	clients []*fasthttp.HostClient // clients
-	opt     *Option                // opt contains finally option to open reverseProxy
+	// oldAddr to keep old API working as usual, this field should be removed
+	oldAddr string
+
+	// bla keeps balancer instance
+	bla IBalancer
+
+	// clients
+	clients []*fasthttp.HostClient
+
+	// opt contains finally option to open reverseProxy
+	opt *buildOption
 }
 
 // NewReverseProxy create an ReverseProxy with options
 func NewReverseProxy(oldAddr string, opts ...Option) *ReverseProxy {
-	dstOption := &Option{
-		OpenBalance: false,
-		Ws:          nil,
-		Addrs:       nil,
-		tlsConfig:   nil,
-	}
-
-	// merge opts into dstOption
+	dst := new(buildOption)
 	for _, opt := range opts {
-		if err := mergo.Map(dstOption, opt, mergo.WithOverride); err != nil {
-			panic(err)
-		}
-
-		if opt.tlsConfig != nil {
-			dstOption.tlsConfig = opt.tlsConfig
-		}
+		opt.apply(dst)
 	}
 
-	logger.Debugf("dst opt=%+v opts=%+v\n", dstOption, opts)
+	logger.Debugf("dst opt=%+v opts=%+v\n", dst, opts)
 
 	// apply an new object of `ReverseProxy`
 	proxy := ReverseProxy{
 		oldAddr: oldAddr,
 		bla:     nil,
-		// ws:      make([]W, 0, 1),
-		// clients: make([]*fasthttp.HostClient, 0, 1),
-		opt: dstOption,
+		opt:     dst,
+		clients: make([]*fasthttp.HostClient, 0, 2),
 	}
 
 	(&proxy).init()
@@ -111,17 +55,17 @@ func NewReverseProxy(oldAddr string, opts ...Option) *ReverseProxy {
 // if opt.OpenBalance is true then create a balancer to ReverseProxy
 // else just
 func (p *ReverseProxy) init() {
-	if p.opt.OpenBalance {
+	if p.opt.openBalance {
 		// config balancer
 		p.oldAddr = ""
-		p.clients = make([]*fasthttp.HostClient, len(p.opt.Addrs))
-		p.ws = p.opt.Ws
-		p.bla = NewBalancer(p.ws)
+		p.clients = make([]*fasthttp.HostClient, len(p.opt.addresses))
+		p.bla = NewBalancer(p.opt.weights)
 
-		for idx, addr := range p.opt.Addrs {
+		for idx, addr := range p.opt.addresses {
 			p.clients[idx] = &fasthttp.HostClient{
 				Addr:      addr,
 				Name:      _fasthttpHostClientName,
+				IsTLS:     p.opt.tlsConfig != nil,
 				TLSConfig: p.opt.tlsConfig,
 			}
 		}
@@ -130,13 +74,12 @@ func (p *ReverseProxy) init() {
 	}
 
 	// not open balancer
-	p.ws = append(p.ws, Weight(100))
 	p.bla = nil
 	p.clients = append(p.clients,
 		&fasthttp.HostClient{
 			Addr:      p.oldAddr,
 			Name:      _fasthttpHostClientName,
-			IsTLS:     true,
+			IsTLS:     p.opt.tlsConfig != nil,
 			TLSConfig: p.opt.tlsConfig,
 		})
 }
@@ -234,7 +177,6 @@ func (p *ReverseProxy) Close() {
 	p.clients = nil
 	p.opt = nil
 	p.bla = nil
-	p.ws = nil
 	p = nil
 }
 
