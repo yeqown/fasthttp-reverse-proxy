@@ -5,10 +5,12 @@
 package proxy
 
 import (
+	"errors"
 	"net"
 	"net/http"
 
 	"github.com/valyala/fasthttp"
+	"github.com/yeqown/log"
 )
 
 const (
@@ -37,7 +39,10 @@ func NewReverseProxy(oldAddr string, opts ...Option) *ReverseProxy {
 		opt.apply(dst)
 	}
 
-	logger.Debugf("dst opt=%+v opts=%+v\n", dst, opts)
+	logger.WithFields(log.Fields{
+		"dst":        dst,
+		"sourceOpts": opts,
+	}).Debug("options applied")
 
 	// apply an new object of `ReverseProxy`
 	proxy := ReverseProxy{
@@ -128,25 +133,37 @@ func (p *ReverseProxy) ServeHTTP(ctx *fasthttp.RequestCtx) {
 		req.Header.Del(h)
 	}
 
-	pc := p.getClient()
-	if debug {
-		logger.Infof("recv a requets to proxy to: %s", pc.Addr)
-	}
+	c := p.getClient()
+	logger.WithFields(log.Fields{
+		"addr":           c.Addr,
+		"tlsConfig":      p.opt.tlsConfig,
+		"clientTlsEmpty": c.TLSConfig == nil,
+		"clientIsTLS":    c.IsTLS,
+	}).Debugf("rev a request to proxy")
 
 	// assign the host to support virtual hosting, aka shared web hosting (one IP, multiple domains)
-	req.SetHost(pc.Addr)
+	req.SetHost(c.Addr)
 
-	logger.Debugf("pc with tlsConfig=%+v", pc.TLSConfig)
-
-	if err := pc.Do(req, res); err != nil {
-		logger.Errorf("could not proxy: %v\n", err)
+	// execute the request and rev response with timeout
+	if err := p.doWithTimeout(c, req, res); err != nil {
+		logger.WithFields(log.Fields{
+			"error":  err,
+			"status": res.StatusCode(),
+		}).Errorf("p.doWithTimeout failed")
 		res.SetStatusCode(http.StatusInternalServerError)
+
+		if errors.Is(err, fasthttp.ErrTimeout) {
+			res.SetStatusCode(http.StatusRequestTimeout)
+		}
+
 		res.SetBody([]byte(err.Error()))
 		return
 	}
 
-	logger.Debugf("response headers = %s", res.Header.String())
-	// write response headers
+	// deal with response headers
+	logger.WithFields(log.Fields{
+		"response headers": res.Header.String(),
+	}).Debugf("response headers")
 	for _, h := range hopHeaders {
 		res.Header.Del(h)
 	}
@@ -155,6 +172,15 @@ func (p *ReverseProxy) ServeHTTP(ctx *fasthttp.RequestCtx) {
 	// for k, v := range resHeaders {
 	// 	res.Header.Set(k, v)
 	// }
+}
+
+// doWithTimeout calls fasthttp.HostClient Do or DoTimeout, this is depends on p.opt.timeout
+func (p *ReverseProxy) doWithTimeout(pc *fasthttp.HostClient, req *fasthttp.Request, res *fasthttp.Response) error {
+	if p.opt.timeout <= 0 {
+		return pc.Do(req, res)
+	}
+
+	return pc.DoTimeout(req, res, p.opt.timeout)
 }
 
 // SetClient ...

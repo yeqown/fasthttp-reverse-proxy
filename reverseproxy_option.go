@@ -1,18 +1,33 @@
 package proxy
 
-import "crypto/tls"
+import (
+	"crypto/tls"
+	"time"
+)
 
-// Option to define all options to reverse http proxy
+// Option to define all options to reverse http proxy.
 type Option interface {
 	apply(o *buildOption)
 }
 
-// buildOption .
+// buildOption contains all fields those are used in ReverseProxy.
 type buildOption struct {
-	openBalance bool     // denote whether the balancer is configured or not
-	weights     []W      // weight of each upstream server
-	addresses   []string // all upstream server address
-	tlsConfig   *tls.Config
+	// openBalance denote whether the balancer is configured or not.
+	openBalance bool
+
+	// weights weight of each upstream server. it would be empty if openBalance not true.
+	weights []W
+
+	// addresses all upstream server address. if openBalance not true,
+	// addresses will keep the only one upstream server address in addresses[0].
+	addresses []string
+
+	// tlsConfig is pointer to tls.Config, will be used if the upstream.
+	// need TLS handshake
+	tlsConfig *tls.Config
+
+	// timeout specify the timeout context with each request.
+	timeout time.Duration
 }
 
 type funcBuildOption struct {
@@ -54,5 +69,12 @@ func WithBalancer(addrWeights map[string]Weight) Option {
 		o.addresses = addresses
 		o.openBalance = true
 		o.weights = weights
+	})
+}
+
+// WithTimeout specify the timeout of each request
+func WithTimeout(d time.Duration) Option {
+	return newFuncBuildOption(func(o *buildOption) {
+		o.timeout = d
 	})
 }
