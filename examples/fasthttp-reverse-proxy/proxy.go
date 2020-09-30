@@ -2,6 +2,7 @@ package main
 
 import (
 	"strings"
+	"time"
 
 	"github.com/yeqown/log"
 
@@ -10,7 +11,7 @@ import (
 )
 
 var (
-	proxyServer  = proxy.NewReverseProxy("localhost:8080")
+	proxyServer  = proxy.NewReverseProxy("localhost:8080", proxy.WithTimeout(5*time.Second))
 	proxyServer2 = proxy.NewReverseProxy("api-js.mixpanel.com")
 	proxyServer3 = proxy.NewReverseProxy("baidu.com")
 )
@@ -22,6 +23,13 @@ func ProxyHandler(ctx *fasthttp.RequestCtx) {
 
 	if strings.HasPrefix(requestURI, "/local") {
 		// "/local" path proxy to localhost
+		arr := strings.Split(requestURI, "?")
+		if len(arr) > 1 {
+			arr = append([]string{"/foo"}, arr[1:]...)
+			requestURI = strings.Join(arr, "?")
+		}
+
+		ctx.Request.SetRequestURI(requestURI)
 		proxyServer.ServeHTTP(ctx)
 	} else if strings.HasPrefix(requestURI, "/baidu") {
 		proxyServer3.ServeHTTP(ctx)
