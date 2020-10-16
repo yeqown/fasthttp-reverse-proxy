@@ -7,7 +7,7 @@ import (
 	"github.com/yeqown/log"
 
 	"github.com/valyala/fasthttp"
-	proxy "github.com/yeqown/fasthttp-reverse-proxy"
+	proxy "github.com/yeqown/fasthttp-reverse-proxy/v2"
 )
 
 var (
