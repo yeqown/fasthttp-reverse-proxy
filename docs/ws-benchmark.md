@@ -69,7 +69,7 @@ import (
 	"syscall"
 
 	"github.com/valyala/fasthttp"
-	proxy "github.com/yeqown/fasthttp-reverse-proxy"
+	proxy "github.com/yeqown/fasthttp-reverse-proxy/v2"
 )
 
 var (
@@ -195,7 +195,7 @@ Flat	Flat%	Sum%	Cum	Cum%	Name	Inlined?
 0	0.00%	92.31%	1.26s	30.29%	net.(*conn).Read	
 0	0.00%	92.31%	1.11s	26.68%	internal/poll.(*FD).Write	
 0	0.00%	92.31%	1.26s	30.29%	internal/poll.(*FD).Read	
-0	0.00%	92.31%	2.86s	68.75%	github.com/yeqown/fasthttp-reverse-proxy.replicateWebsocketConn	
+0	0.00%	92.31%	2.86s	68.75%	github.com/yeqown/fasthttp-reverse-proxy/v2.replicateWebsocketConn	
 0	0.00%	92.31%	1.35s	32.45%	github.com/fasthttp/websocket.(*messageWriter).flushFrame	
 0	0.00%	92.31%	0.82s	19.71%	github.com/fasthttp/websocket.(*messageWriter).Close	
 0	0.00%	92.31%	1.39s	33.41%	github.com/fasthttp/websocket.(*Conn).read	

@@ -1,5 +1,5 @@
 # fasthttp-reverse-proxy
-![](https://img.shields.io/badge/LICENSE-MIT-blue.svg) [![Go Report Card](https://goreportcard.com/badge/github.com/yeqown/fasthttp-reverse-proxy)](https://goreportcard.com/report/github.com/yeqown/fasthttp-reverse-proxy) [![GoReportCard](https://godoc.org/github.com/yeqown/fasthttp-reverse-proxy?status.svg)](https://godoc.org/github.com/yeqown/fasthttp-reverse-proxy)
+![](https://img.shields.io/badge/LICENSE-MIT-blue.svg) [![Go Report Card](https://goreportcard.com/badge/github.com/yeqown/fasthttp-reverse-proxy/v2)](https://goreportcard.com/report/github.com/yeqown/fasthttp-reverse-proxy/v2) [![GoReportCard](https://godoc.org/github.com/yeqown/fasthttp-reverse-proxy/v2?status.svg)](https://godoc.org/github.com/yeqown/fasthttp-reverse-proxy/v2)
 
 reverse http proxy hander based on fasthttp.
 
@@ -23,7 +23,7 @@ import (
 	"log"
 
 	"github.com/valyala/fasthttp"
-	proxy "github.com/yeqown/fasthttp-reverse-proxy"
+	proxy "github.com/yeqown/fasthttp-reverse-proxy/v2"
 )
 
 var (
@@ -60,7 +60,7 @@ import (
 	"text/template"
 
 	"github.com/valyala/fasthttp"
-	proxy "github.com/yeqown/fasthttp-reverse-proxy"
+	proxy "github.com/yeqown/fasthttp-reverse-proxy/v2"
 )
 
 var (
