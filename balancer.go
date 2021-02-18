@@ -21,8 +21,7 @@ func (w Weight) Weight() int {
 	return int(w)
 }
 
-// NewBalancer .
-// TODO:
+// NewBalancer constructs a IBalancer instance which implements roundrobin algorithm.
 func NewBalancer(ws []W) IBalancer {
 	rrb := roundrobinBalancer{
 		// choices:      ws,
@@ -50,6 +49,7 @@ func NewBalancer(ws []W) IBalancer {
 	return &rrb
 }
 
+// roundrobinBalancer is a uniform-distributed balancer.
 type roundrobinBalancer struct {
 	// choices      []W
 	mutex        sync.Mutex
@@ -61,9 +61,8 @@ type roundrobinBalancer struct {
 	cw           int   // current weight, 0
 }
 
-// Distribute to implement round robin algorithm
-// it returns the idx of the choosing in ws ([]W)
-// TODO: changing to no lock call
+// Distribute to implement round robin algorithm, returns the idx of the choosing in ws ([]W)
+// TODO(@yeqown): changing to no lock call
 func (rrb *roundrobinBalancer) Distribute() int {
 	rrb.mutex.Lock()
 	defer rrb.mutex.Unlock()
@@ -87,7 +86,7 @@ func (rrb *roundrobinBalancer) Distribute() int {
 	}
 }
 
-// gcd
+// gcd calculates the GCD of a and b.
 func gcd(a, b int) int {
 	if a < b {
 		a, b = b, a // swap a & b
@@ -100,7 +99,7 @@ func gcd(a, b int) int {
 	return gcd(b, a%b)
 }
 
-// nGCD gcd in N nums
+// nGCD calculates the GCD of numbers.
 func nGCD(data []int, n int) int {
 	if n == 1 {
 		return data[0]

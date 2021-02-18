@@ -3,9 +3,9 @@
 
 reverse http proxy hander based on fasthttp.
 
-## features:
+## Features
 
-* [x] proxy client has `pool` supported
+* [x] `pool` supported in the proxy client.
 
 * [x] faster than golang standard `httputil.ReverseProxy`
 
@@ -15,7 +15,7 @@ reverse http proxy hander based on fasthttp.
 
 * [x] support balance distibute based `rounddobin`
 
-## quick start
+## Get started
 
 #### HTTP (with balancer option)
 ```go
@@ -84,18 +84,18 @@ func main() {
 }
 ```
 
-## usage
+## Usages
 
-* [use it alone](./examples/fasthttp-reverse-proxy/proxy.go)
-* [use it with pool](./examples/fasthttp-reverse-proxy-with-pool/pool.go)
-* [websocket](./examples/ws-fasthttp-reverse-proxy)
+* [HTTP reverse proxy](./examples/fasthttp-reverse-proxy/proxy.go)
+* [HTTP reverse proxy with object pool](./examples/fasthttp-reverse-proxy-with-pool/pool.go)
+* [Websocket reverse proxy](./examples/ws-fasthttp-reverse-proxy)
 
-## contrast
+## Contrast
 
 * [HTTP benchmark](./docs/http-benchmark.md)
 * [Websocket benchmark](./docs/ws-benchmark.md)
 
-## links:
+## References
 
 * [fasthttp](https://github.com/valyala/fasthttp)
 * [standard httputil.ReverseProxy](https://golang.org/pkg/net/http/httputil/#ReverseProxy)
