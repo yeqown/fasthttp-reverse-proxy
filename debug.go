@@ -5,12 +5,10 @@ import (
 )
 
 var (
-	debug     = true
 	logger, _ = log.NewLogger()
 )
 
 // SetProduction .
 func SetProduction() {
-	debug = false
 	logger.SetLogLevel(log.LevelInfo)
 }
