@@ -8,6 +8,7 @@ import (
 	"syscall"
 
 	"github.com/valyala/fasthttp"
+
 	proxy "github.com/yeqown/fasthttp-reverse-proxy/v2"
 )
 

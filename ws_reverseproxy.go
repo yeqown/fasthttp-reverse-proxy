@@ -2,10 +2,12 @@ package proxy
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
-	"net/url"
+
+	"github.com/yeqown/log"
 
 	"github.com/fasthttp/websocket"
 	"github.com/valyala/fasthttp"
@@ -18,7 +20,7 @@ var (
 		ReadBufferSize:  1024,
 		WriteBufferSize: 1024,
 	}
-	// DefaultUpgrader = &websocket.Upgrader{
+	// DefaultUpgrader = &websocket.upgrader{
 	// 	ReadBufferSize:  1024,
 	// 	WriteBufferSize: 1024,
 	// }
@@ -30,27 +32,37 @@ var (
 // WSReverseProxy .
 // refer to https://github.com/koding/websocketproxy
 type WSReverseProxy struct {
-	target url.URL
-
-	// Upgrader specifies the parameters for upgrading a incoming HTTP
-	// connection to a WebSocket connection. If nil, DefaultUpgrader is used.
-	Upgrader *websocket.FastHTTPUpgrader
-	// Upgrader *websocket.Upgrader
-
-	//  Dialer contains options for connecting to the backend WebSocket server.
-	//  If nil, DefaultDialer is used.
-	Dialer *websocket.Dialer
+	option *buildOptionWS
 }
 
-// NewWSReverseProxy .
+// NewWSReverseProxy constructs a new WSReverseProxy to serve requests.
+// Deprecated.
+// NewWSReverseProxyWith is recommended.
 func NewWSReverseProxy(host, path string) *WSReverseProxy {
-	return &WSReverseProxy{
-		target: url.URL{
-			Scheme: "ws",
-			Host:   host,
-			Path:   path,
-		},
+	wsproxy, err := NewWSReverseProxyWith(
+		WithURL_OptionWS(fmt.Sprintf("%s://%s/%s", "ws", host, path)),
+	)
+	if err != nil {
+		panic(err)
 	}
+
+	return wsproxy
+}
+
+// NewWSReverseProxyWith constructs a new WSReverseProxy with options.
+func NewWSReverseProxyWith(opts ...OptionWS) (*WSReverseProxy, error) {
+	dst := defaultBuildOptionWS()
+	for _, opt := range opts {
+		opt.apply(dst)
+	}
+
+	if err := dst.validate(); err != nil {
+		return nil, err
+	}
+
+	return &WSReverseProxy{
+		option: dst,
+	}, nil
 }
 
 // ServeHTTP WSReverseProxy to serve
@@ -60,73 +72,51 @@ func (w *WSReverseProxy) ServeHTTP(ctx *fasthttp.RequestCtx) {
 	}
 
 	var (
-		req      = &ctx.Request
+		// req      = &ctx.Request
 		resp     = &ctx.Response
 		dialer   = DefaultDialer
 		upgrader = DefaultUpgrader
 	)
 
-	if w.Dialer != nil {
-		dialer = w.Dialer
+	if w.option.dialer != nil {
+		dialer = w.option.dialer
 	}
 
-	if w.Upgrader != nil {
-		upgrader = w.Upgrader
+	if w.option.upgrader != nil {
+		upgrader = w.option.upgrader
 	}
 
-	// Pass headers from the incoming request to the dialer to forward them to
-	// the final destinations.
-	requestHeader := http.Header{}
-	if origin := req.Header.Peek("Origin"); string(origin) != "" {
-		requestHeader.Add("Origin", string(origin))
-	}
+	// handle request header
+	forwardHeader := builtinForwardHeaderHandler(ctx)
 
-	if prot := req.Header.Peek("Sec-WebSocket-Protocol"); string(prot) != "" {
-		requestHeader.Add("Sec-WebSocket-Protocol", string(prot))
-	}
-
-	if cookie := req.Header.Peek("Cookie"); string(cookie) != "" {
-		requestHeader.Add("Sec-WebSocket-Protocol", string(cookie))
-	}
-
-	if string(req.Host()) != "" {
-		requestHeader.Set("Host", string(req.Host()))
-	}
-
-	// Pass X-Forwarded-For headers too, code below is a part of
-	// httputil.ReverseProxy. See http://en.wikipedia.org/wiki/X-Forwarded-For
-	// for more information
-	// TODO: use RFC7239 http://tools.ietf.org/html/rfc7239
-	if clientIP, _, err := net.SplitHostPort(ctx.RemoteAddr().String()); err == nil {
-		// If we aren't the first proxy retain prior
-		// X-Forwarded-For information as a comma+space
-		// separated list and fold multiple headers into one.
-		if prior := req.Header.Peek("X-Forwarded-For"); string(prior) != "" {
-			clientIP = string(prior) + ", " + clientIP
+	// customize headers to forward, this may override headers from builtinForwardHeaderHandler
+	// so be careful to set header only when you do need it.
+	if w.option.fn != nil {
+		appendHeaders := w.option.fn(ctx)
+		for k, vs := range appendHeaders {
+			for _, v := range vs {
+				forwardHeader.Set(k, v)
+			}
 		}
-		requestHeader.Set("X-Forwarded-For", clientIP)
 	}
 
-	// Set the originating protocol of the incoming HTTP request. The SSL might
-	// be terminated on our site and because we doing proxy adding this would
-	// be helpful for applications on the backend.
-	requestHeader.Set("X-Forwarded-Proto", "http")
-	if ctx.IsTLS() {
-		requestHeader.Set("X-Forwarded-Proto", "https")
-	}
-
-	// Connect to the backend URL, also pass the headers we get from the requst
+	// Connect to the backend URL, also pass the headers we get from the request
 	// together with the Forwarded headers we prepared above.
 	// TODO: support multiplexing on the same backend connection instead of
 	// opening a new TCP connection time for each request. This should be
 	// optional:
 	// http://tools.ietf.org/html/draft-ietf-hybi-websocket-multiplexing-01
-	connBackend, respBackend, err := dialer.Dial(w.target.String(), requestHeader)
+	connBackend, respBackend, err := dialer.Dial(w.option.target.String(), forwardHeader)
 	if err != nil {
-		logger.Errorf("websocketproxy: couldn't dial to remote backend host=%s, err=%v", w.target.String(), err)
-		logger.Debugf("resp_backent =%v", respBackend)
+		logger.
+			WithFields(log.Fields{
+				"error": err,
+				"host":  w.option.target.String(),
+			}).
+			Errorf("websocketproxy: couldn't dial to remote backend")
+		// logger.Debugf("resp_backent =%v", respBackend)
 		if respBackend != nil {
-			if err := wsCopyResponse(resp, respBackend); err != nil {
+			if err = wsCopyResponse(resp, respBackend); err != nil {
 				logger.Errorf("could not finish wsCopyResponse, err=%v", err)
 			}
 		} else {
@@ -170,6 +160,53 @@ func (w *WSReverseProxy) ServeHTTP(ctx *fasthttp.RequestCtx) {
 		logger.Errorf("websocketproxy: couldn't upgrade %s", err)
 		return
 	}
+}
+
+// builtinForwardHeaderHandler built in handler for dealing forward request headers.
+func builtinForwardHeaderHandler(ctx *fasthttp.RequestCtx) (forwardHeader http.Header) {
+	forwardHeader = make(http.Header, 4)
+
+	// Pass headers from the incoming request to the dialer to forward them to
+	// the final destinations.
+	if origin := ctx.Request.Header.Peek("Origin"); string(origin) != "" {
+		forwardHeader.Add("Origin", string(origin))
+	}
+
+	if prot := ctx.Request.Header.Peek("Sec-WebSocket-Protocol"); string(prot) != "" {
+		forwardHeader.Add("Sec-WebSocket-Protocol", string(prot))
+	}
+
+	if cookie := ctx.Request.Header.Peek("Cookie"); string(cookie) != "" {
+		forwardHeader.Add("Sec-WebSocket-Protocol", string(cookie))
+	}
+
+	if string(ctx.Request.Host()) != "" {
+		forwardHeader.Set("Host", string(ctx.Request.Host()))
+	}
+
+	// Pass X-Forwarded-For headers too, code below is a part of
+	// httputil.ReverseProxy. See http://en.wikipedia.org/wiki/X-Forwarded-For
+	// for more information
+	// TODO: use RFC7239 http://tools.ietf.org/html/rfc7239
+	if clientIP, _, err := net.SplitHostPort(ctx.RemoteAddr().String()); err == nil {
+		// If we aren't the first proxy retain prior
+		// X-Forwarded-For information as a comma+space
+		// separated list and fold multiple headers into one.
+		if prior := ctx.Request.Header.Peek("X-Forwarded-For"); string(prior) != "" {
+			clientIP = string(prior) + ", " + clientIP
+		}
+		forwardHeader.Set("X-Forwarded-For", clientIP)
+	}
+
+	// Set the originating protocol of the incoming HTTP request. The SSL might
+	// be terminated on our site and because we doing proxy adding this would
+	// be helpful for applications on the backend.
+	forwardHeader.Set("X-Forwarded-Proto", "http")
+	if ctx.IsTLS() {
+		forwardHeader.Set("X-Forwarded-Proto", "https")
+	}
+
+	return
 }
 
 // replicateWebsocketConn to
