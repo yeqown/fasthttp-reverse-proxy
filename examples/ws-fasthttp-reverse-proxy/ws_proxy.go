@@ -2,42 +2,39 @@ package main
 
 import (
 	"log"
+	"sync"
 
 	"github.com/valyala/fasthttp"
+
 	proxy "github.com/yeqown/fasthttp-reverse-proxy/v2"
 )
 
 var (
-	proxyServer = proxy.NewWSReverseProxy("localhost:8080", "/echo")
+	proxyServer *proxy.WSReverseProxy
+	once        sync.Once
 )
 
 // ProxyHandler ... fasthttp.RequestHandler func
 func ProxyHandler(ctx *fasthttp.RequestCtx) {
+	once.Do(func() {
+		var err error
+		proxyServer, err = proxy.NewWSReverseProxyWith(
+			proxy.WithURL_OptionWS("ws://localhost:8080/echo"),
+		)
+		if err != nil {
+			panic(err)
+		}
+	})
+
 	switch string(ctx.Path()) {
 	case "/echo":
 		proxyServer.ServeHTTP(ctx)
 	case "/":
-		// homeView(ctx)
 		fasthttp.ServeFileUncompressed(ctx, "./index.html")
 	default:
 		ctx.Error("Unsupported path", fasthttp.StatusNotFound)
 	}
 }
-
-// func homeView(ctx *fasthttp.RequestCtx) {
-// 	ctx.SetContentType("text/html")
-// 	fd, err := os.Open("./index.html")
-// 	if err != nil {
-// 		log.Printf("homeView err=%v", err)
-// 		ctx.Write(p)
-// 	}
-// 	// buf := bytes.NewBuffer(nil)
-// 	dat, err := ioutil.ReadAll(fd)
-// 	if err != nil {
-// 		log.Printf("homeView err=%v", err)
-// 	}
-// 	ctx.Write(dat)
-// }
 
 func main() {
 	log.Println("serving on: 8081")
