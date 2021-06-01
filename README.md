@@ -1,31 +1,24 @@
 # fasthttp-reverse-proxy
 ![](https://img.shields.io/badge/LICENSE-MIT-blue.svg) [![Go Report Card](https://goreportcard.com/badge/github.com/yeqown/fasthttp-reverse-proxy/v2)](https://goreportcard.com/report/github.com/yeqown/fasthttp-reverse-proxy/v2) [![GoReportCard](https://godoc.org/github.com/yeqown/fasthttp-reverse-proxy/v2?status.svg)](https://godoc.org/github.com/yeqown/fasthttp-reverse-proxy/v2)
 
-reverse http proxy hander based on fasthttp.
+reverse http proxy handler based on fasthttp.
 
 ## Features
 
-* [x] `pool` supported in the proxy client.
+- [x] `HTTP` reverse proxy based [fasthttp](https://github.com/valyala/fasthttp)
+  
+	- [x] it's faster than golang standard `httputil.ReverseProxy` library.
+	- [x] implemented by `fasthttp.HostClient` 
+	- [x] support balance distribute based `rounddobin`
+	- [x] `HostClient` object pool with an overlay of fasthttp connection pool.
 
-* [x] faster than golang standard `httputil.ReverseProxy`
-
-* [x] simple warpper of `fasthttp.HostClient` 
-
-* [x] websocket proxy
-
-* [x] support balance distibute based `rounddobin`
+* [x] `WebSocket` reverse proxy.
 
 ## Get started
 
-#### HTTP (with balancer option)
+#### [HTTP (with balancer option)](./examples/fasthttp-reverse-proxy-with-bla/proxy.go)
+
 ```go
-import (
-	"log"
-
-	"github.com/valyala/fasthttp"
-	proxy "github.com/yeqown/fasthttp-reverse-proxy/v2"
-)
-
 var (
 	proxyServer = proxy.NewReverseProxy("localhost:8080")
 
@@ -52,36 +45,43 @@ func main() {
 }
 ```
 
-#### Websocket
+#### [Websocket](./examples/ws-fasthttp-reverse-proxy/README.md)
 
 ```go
-import (
-	"log"
-	"text/template"
-
-	"github.com/valyala/fasthttp"
-	proxy "github.com/yeqown/fasthttp-reverse-proxy/v2"
-)
-
 var (
-	proxyServer = proxy.NewWSReverseProxy("localhost:8080", "/echo")
+	proxyServer *proxy.WSReverseProxy
+	once        sync.Once
 )
 
 // ProxyHandler ... fasthttp.RequestHandler func
 func ProxyHandler(ctx *fasthttp.RequestCtx) {
+	once.Do(func() {
+		var err error
+		proxyServer, err = proxy.NewWSReverseProxyWith(
+			proxy.WithURL_OptionWS("ws://localhost:8080/echo"),
+		)
+		if err != nil {
+			panic(err)
+		}
+	})
+
 	switch string(ctx.Path()) {
-	case "/":
+	case "/echo":
 		proxyServer.ServeHTTP(ctx)
+	case "/":
+		fasthttp.ServeFileUncompressed(ctx, "./index.html")
 	default:
 		ctx.Error("Unsupported path", fasthttp.StatusNotFound)
 	}
 }
 
 func main() {
+	log.Println("serving on: 8081")
 	if err := fasthttp.ListenAndServe(":8081", ProxyHandler); err != nil {
 		log.Fatal(err)
 	}
 }
+
 ```
 
 ## Usages
