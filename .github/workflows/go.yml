@@ -19,4 +19,4 @@ jobs:
         go-version: 1.17
 
     - name: Test
-      run: go test -v ./...
+      run: go test $(go list ./... | grep -v examples)
