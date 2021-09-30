@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"strings"
 
 	"github.com/yeqown/log"
 
@@ -39,6 +40,7 @@ type WSReverseProxy struct {
 // Deprecated.
 // NewWSReverseProxyWith is recommended.
 func NewWSReverseProxy(host, path string) *WSReverseProxy {
+	path = strings.TrimPrefix(path, "/")
 	wsproxy, err := NewWSReverseProxyWith(
 		WithURL_OptionWS(fmt.Sprintf("%s://%s/%s", "ws", host, path)),
 	)

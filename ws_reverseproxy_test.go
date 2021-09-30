@@ -1,12 +1,14 @@
 package proxy
 
 import (
+	"fmt"
 	"net/http"
 	"testing"
 	"time"
 
 	"github.com/fasthttp/websocket"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 	"github.com/valyala/fasthttp"
 	"github.com/yeqown/log"
 )
@@ -18,9 +20,21 @@ func BenchmarkNewWSReverseProxy(b *testing.B) {
 	}
 }
 
-func runBackend(addr string) {
+type wsTestSuite struct {
+	suite.Suite
+
+	server fasthttp.Server
+}
+
+func (w *wsTestSuite) SetupSuite() {
+	go w.backendProc(":8080")
+
+	time.Sleep(3 * time.Second)
+}
+
+func (w *wsTestSuite) backendProc(addr string) {
 	upgrader := websocket.FastHTTPUpgrader{}
-	entry := logger.WithField("func", "runBackend")
+	entry := logger.WithField("func", "backendProc")
 	echoHdl := func(ctx *fasthttp.RequestCtx) {
 		entry.
 			WithFields(log.Fields{
@@ -70,9 +84,9 @@ func runBackend(addr string) {
 	}
 }
 
-func doRequest(t *testing.T) {
+func executeAndAssert(t *testing.T, port int) {
 	// client
-	conn, resp, err := websocket.DefaultDialer.Dial("ws://localhost:8081", nil)
+	conn, resp, err := websocket.DefaultDialer.Dial(fmt.Sprintf("ws://localhost:%d",port), nil)
 	assert.Nil(t, err)
 	assert.Equal(t, http.StatusSwitchingProtocols, resp.StatusCode)
 	t.Logf("got resp: %+v", resp)
@@ -91,7 +105,7 @@ func doRequest(t *testing.T) {
 	assert.Equal(t, data, p)
 }
 
-func runProxy(p *WSReverseProxy, addr string) {
+func reverseProxyProc(p *WSReverseProxy, addr string) {
 	reqHdl := func(ctx *fasthttp.RequestCtx) {
 		p.ServeHTTP(ctx)
 	}
@@ -101,43 +115,27 @@ func runProxy(p *WSReverseProxy, addr string) {
 	}
 }
 
-func Test_NewWSReverseProxy(t *testing.T) {
-	go runBackend(":8080")
-	time.Sleep(3 * time.Second)
-
-	// constructs a websocket proxy server
+func (w *wsTestSuite) Test_NewWSReverseProxy() {
 	var p *WSReverseProxy
-	assert.NotPanics(t, func() {
+	assert.NotPanics(w.T(), func() {
 		p = NewWSReverseProxy("localhost:8080", "/echo")
-	}, "compatiable old version API failed")
-	assert.NotNil(t, p)
+	}, "compatible old version API failed")
+	assert.NotNil(w.T(), p)
 
-	// star and serve
-	go runProxy(p, ":8081")
-
-	doRequest(t)
+	go reverseProxyProc(p, ":8081")
+	executeAndAssert(w.T(), 8081)
 }
 
-func Test_NewWSReverseProxyWith(t *testing.T) {
-	go runBackend(":8080")
-
-	time.Sleep(3 * time.Second)
-	// constructs a websocket proxy server
+func (w *wsTestSuite)Test_NewWSReverseProxyWith() {
 	p, err := NewWSReverseProxyWith(WithURL_OptionWS("ws://localhost:8080/echo"))
-	assert.Nil(t, err)
-	assert.NotNil(t, p)
+	assert.Nil(w.T(), err)
+	assert.NotNil(w.T(), p)
 
-	// star and serve
-	go runProxy(p, ":8081")
-
-	doRequest(t)
+	go reverseProxyProc(p, ":8082")
+	executeAndAssert(w.T(), 8082)
 }
 
-func Test_NewWSReverseProxyWith_WithForwardHeadersHandler(t *testing.T) {
-	go runBackend(":8080")
-
-	time.Sleep(3 * time.Second)
-	// constructs a websocket proxy server
+func (w *wsTestSuite) Test_NewWSReverseProxyWith_WithForwardHeadersHandler() {
 	p, err := NewWSReverseProxyWith(
 		WithURL_OptionWS("ws://localhost:8080/echo"),
 		WithForwardHeadersHandlers_OptionWS(func(ctx *fasthttp.RequestCtx) (forwardHeader http.Header) {
@@ -146,11 +144,12 @@ func Test_NewWSReverseProxyWith_WithForwardHeadersHandler(t *testing.T) {
 			}
 		}),
 	)
-	assert.Nil(t, err)
+	assert.Nil(w.T(), err)
 
-	// star and serve
-	go runProxy(p, ":8081")
+	go reverseProxyProc(p, ":8083")
+	executeAndAssert(w.T(), 8083)
+}
 
-	// doRequest
-	doRequest(t)
+func Test_wsTestSuite(t *testing.T) {
+	suite.Run(t, new(wsTestSuite))
 }
