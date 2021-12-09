@@ -179,7 +179,7 @@ func builtinForwardHeaderHandler(ctx *fasthttp.RequestCtx) (forwardHeader http.H
 	}
 
 	if cookie := ctx.Request.Header.Peek("Cookie"); string(cookie) != "" {
-		forwardHeader.Add("Sec-WebSocket-Protocol", string(cookie))
+		forwardHeader.Add("Cookie", string(cookie))
 	}
 
 	if string(ctx.Request.Host()) != "" {
