@@ -28,6 +28,9 @@ type buildOption struct {
 
 	// timeout specify the timeout context with each request.
 	timeout time.Duration
+
+	// disablePathNormalizing disable path normalizing.
+	disablePathNormalizing bool
 }
 
 type funcBuildOption struct {
@@ -76,5 +79,12 @@ func WithBalancer(addrWeights map[string]Weight) Option {
 func WithTimeout(d time.Duration) Option {
 	return newFuncBuildOption(func(o *buildOption) {
 		o.timeout = d
+	})
+}
+
+// WithDisablePathNormalizing sets whether disable path normalizing.
+func WithDisablePathNormalizing(isDisablePathNormalizing bool) Option {
+	return newFuncBuildOption(func(o *buildOption) {
+		o.disablePathNormalizing = isDisablePathNormalizing
 	})
 }

@@ -68,10 +68,11 @@ func (p *ReverseProxy) init() {
 
 		for idx, addr := range p.opt.addresses {
 			p.clients[idx] = &fasthttp.HostClient{
-				Addr:      addr,
-				Name:      _fasthttpHostClientName,
-				IsTLS:     p.opt.tlsConfig != nil,
-				TLSConfig: p.opt.tlsConfig,
+				Addr:                   addr,
+				Name:                   _fasthttpHostClientName,
+				IsTLS:                  p.opt.tlsConfig != nil,
+				TLSConfig:              p.opt.tlsConfig,
+				DisablePathNormalizing: p.opt.disablePathNormalizing,
 			}
 		}
 
@@ -82,10 +83,11 @@ func (p *ReverseProxy) init() {
 	p.bla = nil
 	p.clients = append(p.clients,
 		&fasthttp.HostClient{
-			Addr:      p.oldAddr,
-			Name:      _fasthttpHostClientName,
-			IsTLS:     p.opt.tlsConfig != nil,
-			TLSConfig: p.opt.tlsConfig,
+			Addr:                   p.oldAddr,
+			Name:                   _fasthttpHostClientName,
+			IsTLS:                  p.opt.tlsConfig != nil,
+			TLSConfig:              p.opt.tlsConfig,
+			DisablePathNormalizing: p.opt.disablePathNormalizing,
 		})
 }
 
