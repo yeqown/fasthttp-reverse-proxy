@@ -144,7 +144,7 @@ func (p *ReverseProxy) ServeHTTP(ctx *fasthttp.RequestCtx) {
 	}).Debugf("rev a request to proxy")
 
 	// assign the host to support virtual hosting, aka shared web hosting (one IP, multiple domains)
-	req.SetHost(c.Addr)
+	req.SetHost(string(req.Host()))
 
 	// execute the request and rev response with timeout
 	if err := p.doWithTimeout(c, req, res); err != nil {
