@@ -9,7 +9,8 @@ type IBalancer interface {
 	Distribute() int
 }
 
-// W
+// W is an interface which should be implemented by the type
+// which will be used in balancer.
 type W interface {
 	Weight() int
 }
@@ -23,7 +24,7 @@ func (w Weight) Weight() int {
 
 // NewBalancer constructs a IBalancer instance which implements roundrobin algorithm.
 func NewBalancer(ws []W) IBalancer {
-	rrb := roundrobinBalancer{
+	rrb := roundRobinBalancer{
 		// choices:      ws,
 		mutex:        sync.Mutex{},
 		weights:      make([]int, len(ws)),
@@ -49,8 +50,8 @@ func NewBalancer(ws []W) IBalancer {
 	return &rrb
 }
 
-// roundrobinBalancer is a uniform-distributed balancer.
-type roundrobinBalancer struct {
+// roundRobinBalancer is a uniform-distributed balancer.
+type roundRobinBalancer struct {
 	// choices      []W
 	mutex        sync.Mutex
 	weights      []int // weight
@@ -61,9 +62,9 @@ type roundrobinBalancer struct {
 	cw           int   // current weight, 0
 }
 
-// Distribute to implement round robin algorithm, returns the idx of the choosing in ws ([]W)
+// Distribute to implement round-robin algorithm, returns the idx of the choosing in ws ([]W)
 // TODO(@yeqown): changing to no lock call
-func (rrb *roundrobinBalancer) Distribute() int {
+func (rrb *roundRobinBalancer) Distribute() int {
 	rrb.mutex.Lock()
 	defer rrb.mutex.Unlock()
 

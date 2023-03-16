@@ -2,13 +2,9 @@ package proxy
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"net"
 	"net/http"
-	"strings"
-
-	"github.com/yeqown/log"
 
 	"github.com/fasthttp/websocket"
 	"github.com/valyala/fasthttp"
@@ -36,41 +32,26 @@ type WSReverseProxy struct {
 	option *buildOptionWS
 }
 
-// NewWSReverseProxy constructs a new WSReverseProxy to serve requests.
-// Deprecated.
-// NewWSReverseProxyWith is recommended.
-func NewWSReverseProxy(host, path string) *WSReverseProxy {
-	path = strings.TrimPrefix(path, "/")
-	wsproxy, err := NewWSReverseProxyWith(
-		WithURL_OptionWS(fmt.Sprintf("%s://%s/%s", "ws", host, path)),
-	)
-	if err != nil {
-		panic(err)
-	}
-
-	return wsproxy
-}
-
 // NewWSReverseProxyWith constructs a new WSReverseProxy with options.
-func NewWSReverseProxyWith(opts ...OptionWS) (*WSReverseProxy, error) {
-	dst := defaultBuildOptionWS()
-	for _, opt := range opts {
-		opt.apply(dst)
+func NewWSReverseProxyWith(options ...OptionWS) (*WSReverseProxy, error) {
+	option := defaultBuildOptionWS()
+	for _, opt := range options {
+		opt.apply(option)
 	}
 
-	if err := dst.validate(); err != nil {
+	if err := option.validate(); err != nil {
 		return nil, err
 	}
 
 	return &WSReverseProxy{
-		option: dst,
+		option: option,
 	}, nil
 }
 
 // ServeHTTP WSReverseProxy to serve
 func (w *WSReverseProxy) ServeHTTP(ctx *fasthttp.RequestCtx) {
-	if b := websocket.FastHTTPIsWebSocketUpgrade(ctx); b {
-		logger.Debugf("Request is upgraded %v", b)
+	if websocket.FastHTTPIsWebSocketUpgrade(ctx) {
+		debugF(w.option.debug, w.option.logger, "websocketproxy: got websocket request")
 	}
 
 	var (
@@ -110,16 +91,11 @@ func (w *WSReverseProxy) ServeHTTP(ctx *fasthttp.RequestCtx) {
 	// http://tools.ietf.org/html/draft-ietf-hybi-websocket-multiplexing-01
 	connBackend, respBackend, err := dialer.Dial(w.option.target.String(), forwardHeader)
 	if err != nil {
-		logger.
-			WithFields(log.Fields{
-				"error": err,
-				"host":  w.option.target.String(),
-			}).
-			Errorf("websocketproxy: couldn't dial to remote backend")
-		// logger.Debugf("resp_backent =%v", respBackend)
+		errorF(w.option.logger, "websocketproxy: couldn't dial to remote backend(%s): %v", w.option.target.String(), err)
+
 		if respBackend != nil {
 			if err = wsCopyResponse(resp, respBackend); err != nil {
-				logger.Errorf("could not finish wsCopyResponse, err=%v", err)
+				errorF(w.option.logger, "websocketproxy: couldn't copy response: %v", err)
 			}
 		} else {
 			// ctx.SetStatusCode(http.StatusServiceUnavailable)
@@ -139,9 +115,10 @@ func (w *WSReverseProxy) ServeHTTP(ctx *fasthttp.RequestCtx) {
 			message    string
 		)
 
-		logger.Debug("upgrade handler working")
-		go replicateWebsocketConn(connPub, connBackend, errClient)  // response
-		go replicateWebsocketConn(connBackend, connPub, errBackend) // request
+		debugF(w.option.debug, w.option.logger, "websocketproxy: upgrade handler working")
+
+		go replicateWebsocketConn(w.option.logger, connPub, connBackend, errClient)  // response
+		go replicateWebsocketConn(w.option.logger, connBackend, connPub, errBackend) // request
 
 		for {
 			select {
@@ -153,15 +130,16 @@ func (w *WSReverseProxy) ServeHTTP(ctx *fasthttp.RequestCtx) {
 
 			// log error except '*websocket.CloseError'
 			if _, ok := err.(*websocket.CloseError); !ok {
-				logger.Errorf(message, err)
+				errorF(w.option.logger, "websocketproxy: error when copying %s: %v", message, err)
 			}
 		}
 	})
 
 	if err != nil {
-		logger.Errorf("websocketproxy: couldn't upgrade %s", err)
-		return
+		errorF(w.option.logger, "websocketproxy: couldn't upgrade %s", err)
 	}
+
+	return
 }
 
 // builtinForwardHeaderHandler built in handler for dealing forward request headers.
@@ -201,7 +179,7 @@ func builtinForwardHeaderHandler(ctx *fasthttp.RequestCtx) (forwardHeader http.H
 	}
 
 	// Set the originating protocol of the incoming HTTP request. The SSL might
-	// be terminated on our site and because we doing proxy adding this would
+	// be terminated on our site and because we're doing proxy adding this would
 	// be helpful for applications on the backend.
 	forwardHeader.Set("X-Forwarded-Proto", "http")
 	if ctx.IsTLS() {
@@ -213,29 +191,29 @@ func builtinForwardHeaderHandler(ctx *fasthttp.RequestCtx) (forwardHeader http.H
 
 // replicateWebsocketConn to
 // copy message from src to dst
-func replicateWebsocketConn(dst, src *websocket.Conn, errChan chan error) {
+func replicateWebsocketConn(logger __Logger, dst, src *websocket.Conn, errChan chan error) {
 	for {
 		msgType, msg, err := src.ReadMessage()
 		if err != nil {
 			// true: handle websocket close error
-			logger.Debugf("src.ReadMessage failed, msgType=%d, msg=%s, err=%v", msgType, msg, err)
+			errorF(logger, "replicateWebsocketConn: src.ReadMessage failed, msgType=%d, msg=%s, err=%v", msgType, msg, err)
 			if ce, ok := err.(*websocket.CloseError); ok {
 				msg = websocket.FormatCloseMessage(ce.Code, ce.Text)
 			} else {
-				logger.Errorf("src.ReadMessage failed, err=%v", err)
+				errorF(logger, "replicateWebsocketConn: src.ReadMessage failed, err=%v", err)
 				msg = websocket.FormatCloseMessage(websocket.CloseAbnormalClosure, err.Error())
 			}
 
 			errChan <- err
 			if err = dst.WriteMessage(websocket.CloseMessage, msg); err != nil {
-				logger.Errorf("write close message failed, err=%v", err)
+				errorF(logger, "replicateWebsocketConn: dst.WriteMessage failed, err=%v", err)
 			}
 			break
 		}
 
 		err = dst.WriteMessage(msgType, msg)
 		if err != nil {
-			logger.Errorf("dst.WriteMessage failed, err=%v", err)
+			errorF(logger, "replicateWebsocketConn: dst.WriteMessage failed, msgType=%d, msg=%s, err=%v", msgType, msg, err)
 			errChan <- err
 			break
 		}

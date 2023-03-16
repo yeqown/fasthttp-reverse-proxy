@@ -10,13 +10,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 	"github.com/valyala/fasthttp"
-	"github.com/yeqown/log"
 )
 
 func BenchmarkNewWSReverseProxy(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		p := NewWSReverseProxy("localhost", "/path")
+		p, err := NewWSReverseProxyWith(WithURL_OptionWS("ws://localhost:8080/echo"))
 		_ = p
+		_ = err
 	}
 }
 
@@ -34,26 +34,22 @@ func (w *wsTestSuite) SetupSuite() {
 
 func (w *wsTestSuite) backendProc(addr string) {
 	upgrader := websocket.FastHTTPUpgrader{}
-	entry := logger.WithField("func", "backendProc")
+
 	echoHdl := func(ctx *fasthttp.RequestCtx) {
-		entry.
-			WithFields(log.Fields{
-				"reqHeader": string(ctx.Request.Header.Header()),
-			}).
-			Debugf("recv headers")
+		fmt.Printf("recv headers: %v\n", string(ctx.Request.Header.Header()))
 
 		err := upgrader.Upgrade(ctx, func(ws *websocket.Conn) {
 			defer ws.Close()
 			for {
 				mt, message, err := ws.ReadMessage()
 				if err != nil {
-					entry.Error("read:", err)
+					fmt.Printf("read message failed: %v\n", err)
 					break
 				}
-				entry.Infof("recv: %s", message)
+				fmt.Printf("recv: %s\n", message)
 				err = ws.WriteMessage(mt, message)
 				if err != nil {
-					entry.Error("write:", err)
+					fmt.Printf("write message failed: %v\n", err)
 					break
 				}
 			}
@@ -61,7 +57,7 @@ func (w *wsTestSuite) backendProc(addr string) {
 
 		if err != nil {
 			if _, ok := err.(websocket.HandshakeError); ok {
-				entry.Info(err)
+				fmt.Printf("websocket handshake: %v\n", err)
 			}
 			return
 		}
@@ -79,14 +75,13 @@ func (w *wsTestSuite) backendProc(addr string) {
 
 	// backend websocket server
 	if err := server.ListenAndServe(addr); err != nil {
-		entry.
-			Errorf("websocket backend server `ListenAndServe` quit, err=%v", err)
+		fmt.Printf("websocket backend server `ListenAndServe` quit, err=%v", err)
 	}
 }
 
 func executeAndAssert(t *testing.T, port int) {
 	// client
-	conn, resp, err := websocket.DefaultDialer.Dial(fmt.Sprintf("ws://localhost:%d",port), nil)
+	conn, resp, err := websocket.DefaultDialer.Dial(fmt.Sprintf("ws://localhost:%d", port), nil)
 	assert.Nil(t, err)
 	assert.Equal(t, http.StatusSwitchingProtocols, resp.StatusCode)
 	t.Logf("got resp: %+v", resp)
@@ -111,22 +106,11 @@ func reverseProxyProc(p *WSReverseProxy, addr string) {
 	}
 
 	if err := fasthttp.ListenAndServe(addr, reqHdl); err != nil {
-		logger.Errorf("websocket proxy server `ListenAndServe` quit, err=%v", err)
+		fmt.Printf("websocket proxy server `ListenAndServe` quit, err=%v\n", err)
 	}
 }
 
-func (w *wsTestSuite) Test_NewWSReverseProxy() {
-	var p *WSReverseProxy
-	assert.NotPanics(w.T(), func() {
-		p = NewWSReverseProxy("localhost:8080", "/echo")
-	}, "compatible old version API failed")
-	assert.NotNil(w.T(), p)
-
-	go reverseProxyProc(p, ":8081")
-	executeAndAssert(w.T(), 8081)
-}
-
-func (w *wsTestSuite)Test_NewWSReverseProxyWith() {
+func (w *wsTestSuite) Test_NewWSReverseProxyWith() {
 	p, err := NewWSReverseProxyWith(WithURL_OptionWS("ws://localhost:8080/echo"))
 	assert.Nil(w.T(), err)
 	assert.NotNil(w.T(), p)

@@ -8,7 +8,7 @@ import (
 )
 
 func BenchmarkNewReverseProxy(b *testing.B) {
-	proxy := NewReverseProxy("localhost:8080")
+	proxy, _ := NewReverseProxyWith(WithAddress("localhost:8080"))
 	if proxy == nil {
 		b.Fatalf("could not get from pool, proxy is nil")
 	}
@@ -26,7 +26,7 @@ func BenchmarkNewReverseProxyWithBla(b *testing.B) {
 		"localhost:8081": 30,
 		"localhost:8082": 60,
 	}
-	proxy := NewReverseProxy("", WithBalancer(weigths))
+	proxy, _ := NewReverseProxyWith(WithBalancer(weigths))
 	if proxy == nil {
 		b.Fatalf("could not get from pool, proxy is nil")
 	}
@@ -38,9 +38,9 @@ func BenchmarkNewReverseProxyWithBla(b *testing.B) {
 }
 
 func Test_NewReverseProxy(t *testing.T) {
-	proxy := NewReverseProxy("https://www.baidu.com")
+	proxy, _ := NewReverseProxyWith(WithAddress("https://www.baidu.com"))
 	if proxy == nil {
-		t.Error("failed create NewReverseProxy")
+		t.Error("failed create NewReverseProxyWith")
 		t.FailNow()
 	}
 	client := proxy.getClient()
@@ -62,9 +62,9 @@ func Test_NewReversePorxyWithBalancer(t *testing.T) {
 		"http://localhost:9092": 50,
 	}
 
-	proxy := NewReverseProxy("", WithBalancer(weights))
+	proxy, _ := NewReverseProxyWith(WithBalancer(weights))
 	if proxy == nil {
-		t.Error("failed create NewReverseProxy")
+		t.Error("failed create NewReverseProxyWith")
 		t.FailNow()
 	}
 	client := proxy.getClient()

@@ -25,6 +25,11 @@ type forwardHeaderHandler func(ctx *fasthttp.RequestCtx) (forwardHeader http.Hea
 
 // buildOptionWS is Option for WS reverse-proxy
 type buildOptionWS struct {
+	// logger is used to log messages.
+	logger __Logger
+	// debug is used to enable debug mode.
+	debug bool
+
 	// target indicates which backend server to proxy.
 	target *url.URL
 
@@ -55,6 +60,8 @@ func (o *buildOptionWS) validate() error {
 
 func defaultBuildOptionWS() *buildOptionWS {
 	return &buildOptionWS{
+		logger:   &nopLogger{},
+		debug:    false,
 		target:   nil,
 		fn:       nil,
 		dialer:   nil,

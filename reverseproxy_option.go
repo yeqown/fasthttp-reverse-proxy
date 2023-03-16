@@ -12,6 +12,11 @@ type Option interface {
 
 // buildOption contains all fields those are used in ReverseProxy.
 type buildOption struct {
+	// logger to log some info
+	logger __Logger
+	// debug to open debug mode to log more info to logger
+	debug bool
+
 	// openBalance denote whether the balancer is configured or not.
 	openBalance bool
 
@@ -31,6 +36,19 @@ type buildOption struct {
 
 	// disablePathNormalizing disable path normalizing.
 	disablePathNormalizing bool
+}
+
+func defaultBuildOption() *buildOption {
+	return &buildOption{
+		logger:                 &nopLogger{},
+		debug:                  false,
+		openBalance:            false,
+		weights:                nil,
+		addresses:              nil,
+		tlsConfig:              nil,
+		timeout:                0,
+		disablePathNormalizing: false,
+	}
 }
 
 type funcBuildOption struct {
@@ -56,6 +74,13 @@ func WithTLS(certFile, keyFile string) Option {
 
 	return WithTLSConfig(&tls.Config{
 		Certificates: []tls.Certificate{cert},
+	})
+}
+
+// WithAddress generate address options
+func WithAddress(addresses ...string) Option {
+	return newFuncBuildOption(func(o *buildOption) {
+		o.addresses = addresses
 	})
 }
 

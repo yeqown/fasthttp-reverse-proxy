@@ -10,7 +10,6 @@ import (
 	"net/http"
 
 	"github.com/valyala/fasthttp"
-	"github.com/yeqown/log"
 )
 
 const (
@@ -19,9 +18,6 @@ const (
 
 // ReverseProxy reverse handler using fasthttp.HostClient
 type ReverseProxy struct {
-	// oldAddr to keep old API working as usual, this field should be removed
-	oldAddr string
-
 	// bla keeps balancer instance
 	bla IBalancer
 
@@ -32,37 +28,36 @@ type ReverseProxy struct {
 	opt *buildOption
 }
 
-// NewReverseProxy create an ReverseProxy with options
-func NewReverseProxy(oldAddr string, opts ...Option) *ReverseProxy {
-	dst := new(buildOption)
-	for _, opt := range opts {
-		opt.apply(dst)
+// NewReverseProxyWith create an ReverseProxy with options
+func NewReverseProxyWith(options ...Option) (*ReverseProxy, error) {
+	option := defaultBuildOption()
+	for _, opt := range options {
+		opt.apply(option)
 	}
 
-	logger.WithFields(log.Fields{
-		"dst":        dst,
-		"sourceOpts": opts,
-	}).Debug("options applied")
-
-	// apply an new object of `ReverseProxy`
-	proxy := ReverseProxy{
-		oldAddr: oldAddr,
+	proxy := &ReverseProxy{
 		bla:     nil,
-		opt:     dst,
+		opt:     option,
 		clients: make([]*fasthttp.HostClient, 0, 2),
 	}
 
-	(&proxy).init()
-	return &proxy
+	if err := proxy.init(); err != nil {
+		return nil, err
+	}
+
+	return proxy, nil
 }
 
-// initialize the ReverseProxy with options,
-// if opt.OpenBalance is true then create a balancer to ReverseProxy
-// else just
-func (p *ReverseProxy) init() {
+// init initialize the ReverseProxy with options,
+// if opted.OpenBalance is true then create a balancer to ReverseProxy
+// else just create a HostClient to ReverseProxy and use it.
+func (p *ReverseProxy) init() error {
+	if len(p.opt.addresses) == 0 {
+		return errors.New("no upstream server address")
+	}
+
 	if p.opt.openBalance {
 		// config balancer
-		p.oldAddr = ""
 		p.clients = make([]*fasthttp.HostClient, len(p.opt.addresses))
 		p.bla = NewBalancer(p.opt.weights)
 
@@ -76,19 +71,21 @@ func (p *ReverseProxy) init() {
 			}
 		}
 
-		return
+		return nil
 	}
 
 	// not open balancer
 	p.bla = nil
-	p.clients = append(p.clients,
-		&fasthttp.HostClient{
-			Addr:                   p.oldAddr,
-			Name:                   _fasthttpHostClientName,
-			IsTLS:                  p.opt.tlsConfig != nil,
-			TLSConfig:              p.opt.tlsConfig,
-			DisablePathNormalizing: p.opt.disablePathNormalizing,
-		})
+	addr := p.opt.addresses[0]
+	client := &fasthttp.HostClient{
+		Addr:                   addr,
+		Name:                   _fasthttpHostClientName,
+		IsTLS:                  p.opt.tlsConfig != nil,
+		TLSConfig:              p.opt.tlsConfig,
+		DisablePathNormalizing: p.opt.disablePathNormalizing,
+	}
+	p.clients = append(p.clients, client)
+	return nil
 }
 
 func (p *ReverseProxy) getClient() *fasthttp.HostClient {
@@ -136,24 +133,18 @@ func (p *ReverseProxy) ServeHTTP(ctx *fasthttp.RequestCtx) {
 	}
 
 	c := p.getClient()
-	logger.WithFields(log.Fields{
-		"addr":           c.Addr,
-		"tlsConfig":      p.opt.tlsConfig,
-		"clientTlsEmpty": c.TLSConfig == nil,
-		"clientIsTLS":    c.IsTLS,
-	}).Debugf("rev a request to proxy")
+
+	if p.opt.debug && p.opt.logger != nil {
+		debugF(p.opt.debug, p.opt.logger, "rev request headers to proxy, addr = %s, headers = %s", c.Addr, req.Header.String())
+	}
 
 	// assign the host to support virtual hosting, aka shared web hosting (one IP, multiple domains)
 	req.SetHost(c.Addr)
 
 	// execute the request and rev response with timeout
 	if err := p.doWithTimeout(c, req, res); err != nil {
-		logger.WithFields(log.Fields{
-			"error":  err,
-			"status": res.StatusCode(),
-		}).Errorf("p.doWithTimeout failed")
+		errorF(p.opt.logger, "p.doWithTimeout failed, err = %v, status = %d", err, res.StatusCode())
 		res.SetStatusCode(http.StatusInternalServerError)
-
 		if errors.Is(err, fasthttp.ErrTimeout) {
 			res.SetStatusCode(http.StatusRequestTimeout)
 		}
@@ -163,17 +154,13 @@ func (p *ReverseProxy) ServeHTTP(ctx *fasthttp.RequestCtx) {
 	}
 
 	// deal with response headers
-	logger.WithFields(log.Fields{
-		"response headers": res.Header.String(),
-	}).Debugf("response headers")
+	if p.opt.debug && p.opt.logger != nil {
+		debugF(p.opt.debug, p.opt.logger, "rev response headers from proxy, addr = %s, headers = %s", c.Addr, res.Header.String())
+	}
+
 	for _, h := range hopHeaders {
 		res.Header.Del(h)
 	}
-
-	// logger.Debugf("response headers = %s", resHeaders)
-	// for k, v := range resHeaders {
-	// 	res.Header.Set(k, v)
-	// }
 }
 
 // doWithTimeout calls fasthttp.HostClient Do or DoTimeout, this is depends on p.opt.timeout

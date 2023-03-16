@@ -7,8 +7,7 @@ import "testing"
 
 func Test_chanPool(t *testing.T) {
 	factoty := func(addr string) (*ReverseProxy, error) {
-		p := NewReverseProxy(addr)
-		return p, nil
+		return NewReverseProxyWith(WithAddress(addr))
 	}
 
 	pool, err := NewChanPool(5, 100, factoty)
@@ -32,9 +31,10 @@ func Test_chanPool(t *testing.T) {
 
 func BenchmarkNewReverseProxyWithPool(b *testing.B) {
 	b.StopTimer()
-	pool, err := NewChanPool(10, 100, func(addr string) (*ReverseProxy, error) {
-		return NewReverseProxy(addr), nil
-	})
+	factory := func(addr string) (*ReverseProxy, error) {
+		return NewReverseProxyWith(WithAddress(addr))
+	}
+	pool, err := NewChanPool(10, 100, factory)
 	if err != nil {
 		b.Fatal(err)
 	}
