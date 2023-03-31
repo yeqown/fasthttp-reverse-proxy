@@ -1,25 +1,25 @@
 package main
 
 import (
+	"log"
 	"strings"
 	"time"
 
-	"github.com/yeqown/log"
-
 	"github.com/valyala/fasthttp"
+
 	proxy "github.com/yeqown/fasthttp-reverse-proxy/v2"
 )
 
 var (
-	proxyServer  = proxy.NewReverseProxy("localhost:8080", proxy.WithTimeout(5*time.Second))
-	proxyServer2 = proxy.NewReverseProxy("api-js.mixpanel.com")
-	proxyServer3 = proxy.NewReverseProxy("baidu.com")
+	proxyServer, _  = proxy.NewReverseProxyWith(proxy.WithAddress("localhost:8080"), proxy.WithTimeout(5*time.Second))
+	proxyServer2, _ = proxy.NewReverseProxyWith(proxy.WithAddress("api-js.mixpanel.com"))
+	proxyServer3, _ = proxy.NewReverseProxyWith(proxy.WithAddress("baidu.com"))
 )
 
 // ProxyHandler ... fasthttp.RequestHandler func
 func ProxyHandler(ctx *fasthttp.RequestCtx) {
 	requestURI := string(ctx.RequestURI())
-	log.Info("requestURI=", requestURI)
+	log.Printf("requestURI=%s\n", requestURI)
 
 	if strings.HasPrefix(requestURI, "/local") {
 		// "/local" path proxy to localhost

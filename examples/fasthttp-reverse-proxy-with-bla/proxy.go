@@ -4,6 +4,7 @@ import (
 	"log"
 
 	"github.com/valyala/fasthttp"
+
 	proxy "github.com/yeqown/fasthttp-reverse-proxy/v2"
 )
 
@@ -14,7 +15,7 @@ var (
 		"localhost:9092": 50,
 	}
 
-	proxyServer = proxy.NewReverseProxy("", proxy.WithBalancer(weights))
+	proxyServer, _ = proxy.NewReverseProxyWith(proxy.WithBalancer(weights))
 )
 
 // ProxyHandler ... fasthttp.RequestHandler func

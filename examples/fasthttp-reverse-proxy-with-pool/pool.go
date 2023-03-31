@@ -4,12 +4,12 @@ import (
 	"log"
 
 	"github.com/valyala/fasthttp"
+
 	proxy "github.com/yeqown/fasthttp-reverse-proxy/v2"
 )
 
 var (
 	pool proxy.Pool
-	err  error
 )
 
 // ProxyPoolHandler ...
@@ -25,14 +25,17 @@ func ProxyPoolHandler(ctx *fasthttp.RequestCtx) {
 }
 
 func factory(hostAddr string) (*proxy.ReverseProxy, error) {
-	p := proxy.NewReverseProxy(hostAddr)
-	return p, nil
+	return proxy.NewReverseProxyWith(proxy.WithAddress(hostAddr))
 }
 
 func main() {
 	initialCap, maxCap := 100, 1000
+	var err error
 	pool, err = proxy.NewChanPool(initialCap, maxCap, factory)
-	if err := fasthttp.ListenAndServe(":8083", ProxyPoolHandler); err != nil {
+	if err != nil {
+		panic(err)
+	}
+	if err = fasthttp.ListenAndServe(":8083", ProxyPoolHandler); err != nil {
 		panic(err)
 	}
 }
