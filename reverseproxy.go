@@ -58,17 +58,18 @@ func (p *ReverseProxy) init() error {
 
 	if p.opt.openBalance {
 		// config balancer
-		p.clients = make([]*fasthttp.HostClient, len(p.opt.addresses))
+		p.clients = make([]*fasthttp.HostClient, 0, len(p.opt.addresses))
 		p.bla = NewBalancer(p.opt.weights)
 
-		for idx, addr := range p.opt.addresses {
-			p.clients[idx] = &fasthttp.HostClient{
+		for _, addr := range p.opt.addresses {
+			client := &fasthttp.HostClient{
 				Addr:                   addr,
 				Name:                   _fasthttpHostClientName,
 				IsTLS:                  p.opt.tlsConfig != nil,
 				TLSConfig:              p.opt.tlsConfig,
 				DisablePathNormalizing: p.opt.disablePathNormalizing,
 			}
+			p.clients = append(p.clients, client)
 		}
 
 		return nil
@@ -133,10 +134,7 @@ func (p *ReverseProxy) ServeHTTP(ctx *fasthttp.RequestCtx) {
 	}
 
 	c := p.getClient()
-
-	if p.opt.debug && p.opt.logger != nil {
-		debugF(p.opt.debug, p.opt.logger, "rev request headers to proxy, addr = %s, headers = %s", c.Addr, req.Header.String())
-	}
+	debugF(p.opt.debug, p.opt.logger, "rev request headers to proxy, addr = %s, headers = %s", c.Addr, req.Header.String())
 
 	// assign the host to support virtual hosting, aka shared web hosting (one IP, multiple domains)
 	req.SetHost(c.Addr)
@@ -154,9 +152,7 @@ func (p *ReverseProxy) ServeHTTP(ctx *fasthttp.RequestCtx) {
 	}
 
 	// deal with response headers
-	if p.opt.debug && p.opt.logger != nil {
-		debugF(p.opt.debug, p.opt.logger, "rev response headers from proxy, addr = %s, headers = %s", c.Addr, res.Header.String())
-	}
+	debugF(p.opt.debug, p.opt.logger, "rev response headers from proxy, addr = %s, headers = %s", c.Addr, res.Header.String())
 
 	for _, h := range hopHeaders {
 		res.Header.Del(h)

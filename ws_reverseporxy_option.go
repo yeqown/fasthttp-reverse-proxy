@@ -82,6 +82,13 @@ func WithURL_OptionWS(u string) OptionWS {
 	})
 }
 
+// WithDebug_OptionWS is used to enable debug mode.
+func WithDebug_OptionWS() OptionWS {
+	return newFuncBuildOptionWS(func(o *buildOptionWS) {
+		o.debug = true
+	})
+}
+
 // WithDialer_OptionWS use specified dialer
 func WithDialer_OptionWS(dialer *websocket.Dialer) OptionWS {
 	return newFuncBuildOptionWS(func(o *buildOptionWS) {

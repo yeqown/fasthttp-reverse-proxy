@@ -100,6 +100,12 @@ func WithBalancer(addrWeights map[string]Weight) Option {
 	})
 }
 
+func WithDebug() Option {
+	return newFuncBuildOption(func(o *buildOption) {
+		o.debug = true
+	})
+}
+
 // WithTimeout specify the timeout of each request
 func WithTimeout(d time.Duration) Option {
 	return newFuncBuildOption(func(o *buildOption) {

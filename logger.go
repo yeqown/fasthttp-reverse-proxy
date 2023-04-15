@@ -11,9 +11,9 @@ type __Logger interface {
 type nopLogger struct{}
 
 func (n *nopLogger) Printf(format string, args ...interface{}) {
-	// if format not end with '/n', then append it
-	if format[len(format)-1] != 0x0a {
-		format += "/n"
+	// if format not end with '\n', then append it
+	if format[len(format)-1] != '\n' {
+		format += "\n"
 	}
 
 	fmt.Printf(format, args...)
