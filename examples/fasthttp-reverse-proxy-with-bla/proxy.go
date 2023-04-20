@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/valyala/fasthttp"
@@ -15,7 +16,7 @@ var (
 		"localhost:9092": 50,
 	}
 
-	proxyServer, _ = proxy.NewReverseProxyWith(proxy.WithBalancer(weights))
+	proxyServer, _ = proxy.NewReverseProxyWith(proxy.WithBalancer(weights), proxy.WithDebug())
 )
 
 // ProxyHandler ... fasthttp.RequestHandler func
@@ -25,6 +26,7 @@ func ProxyHandler(ctx *fasthttp.RequestCtx) {
 }
 
 func main() {
+	fmt.Printf("listening on :8081\n")
 	if err := fasthttp.ListenAndServe(":8081", ProxyHandler); err != nil {
 		log.Fatal(err)
 	}

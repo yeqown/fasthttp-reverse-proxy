@@ -14,7 +14,12 @@ var (
 
 func main() {
 	flag.Parse()
+	addr := fmt.Sprintf(":%d", *port)
+
 	http.HandleFunc("/foo", func(w http.ResponseWriter, req *http.Request) {
+		clientIP := req.Header.Get("X-Forwarded-For")
+		fmt.Printf("got request from %s\n", clientIP)
+
 		_ = req.ParseForm()
 		timeout, err := strconv.Atoi(req.FormValue("timeout"))
 		if err == nil && timeout > 0 {
@@ -22,12 +27,11 @@ func main() {
 			time.Sleep(time.Duration(timeout) * time.Second)
 		}
 
-		ip := req.RemoteAddr
 		w.Header().Add("X-Test", "true")
-		_, _ = fmt.Fprintf(w, "bar: %d, %s", 200, ip)
+		_, _ = fmt.Fprintf(w, "response from %s", addr)
 	})
 
-	addr := fmt.Sprintf(":%d", *port)
+	fmt.Printf("listening on %s\n", addr)
 	if err := http.ListenAndServe(addr, nil); err != nil {
 		panic(err)
 	}
