@@ -20,20 +20,20 @@ func (n *nopLogger) Printf(format string, args ...interface{}) {
 }
 
 func debugF(debug bool, logger __Logger, format string, args ...interface{}) {
-	if logger == nil {
+	if logger == nil || !debug {
 		return
 	}
 
 	logger.Printf("[debug] "+format, args...)
 }
 
-func infoF(logger __Logger, format string, args ...interface{}) {
-	if logger == nil {
-		return
-	}
-
-	logger.Printf("[info] "+format, args...)
-}
+//func infoF(logger __Logger, format string, args ...interface{}) {
+//	if logger == nil {
+//		return
+//	}
+//
+//	logger.Printf("[info] "+format, args...)
+//}
 
 func errorF(logger __Logger, format string, args ...interface{}) {
 	if logger == nil {
