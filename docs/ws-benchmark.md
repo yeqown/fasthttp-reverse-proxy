@@ -73,7 +73,7 @@ import (
 )
 
 var (
-	proxyServer = proxy.NewWSReverseProxy("localhost:8080", "/echo")
+	proxyServer, _ = proxy.NewWSReverseProxyWith(proxy.WithURL_OptionWS("ws://localhost:8080/echo"))
 )
 
 // ProxyHandler ... fasthttp.RequestHandler func
