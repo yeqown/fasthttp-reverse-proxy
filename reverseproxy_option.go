@@ -36,6 +36,9 @@ type buildOption struct {
 
 	// disablePathNormalizing disable path normalizing.
 	disablePathNormalizing bool
+
+	// maxConnDuration of hostClient
+	maxConnDuration time.Duration
 }
 
 func defaultBuildOption() *buildOption {
@@ -117,5 +120,12 @@ func WithTimeout(d time.Duration) Option {
 func WithDisablePathNormalizing(isDisablePathNormalizing bool) Option {
 	return newFuncBuildOption(func(o *buildOption) {
 		o.disablePathNormalizing = isDisablePathNormalizing
+	})
+}
+
+// WithTimeout specify the timeout of each request
+func WithMaxConnDuration(d time.Duration) Option {
+	return newFuncBuildOption(func(o *buildOption) {
+		o.maxConnDuration = d
 	})
 }

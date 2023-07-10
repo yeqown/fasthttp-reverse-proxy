@@ -84,6 +84,7 @@ func (p *ReverseProxy) init() error {
 		IsTLS:                  p.opt.tlsConfig != nil,
 		TLSConfig:              p.opt.tlsConfig,
 		DisablePathNormalizing: p.opt.disablePathNormalizing,
+		MaxConnDuration:        p.opt.maxConnDuration,
 	}
 	p.clients = append(p.clients, client)
 	return nil
