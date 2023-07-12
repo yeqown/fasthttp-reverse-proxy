@@ -51,6 +51,7 @@ func defaultBuildOption() *buildOption {
 		tlsConfig:              nil,
 		timeout:                0,
 		disablePathNormalizing: false,
+		maxConnDuration:        0,
 	}
 }
 
@@ -123,7 +124,8 @@ func WithDisablePathNormalizing(isDisablePathNormalizing bool) Option {
 	})
 }
 
-// WithTimeout specify the timeout of each request
+// WithMaxConnDuration sets maxConnDuration of hostClient, which
+// means keep-alive connections are closed after this duration.
 func WithMaxConnDuration(d time.Duration) Option {
 	return newFuncBuildOption(func(o *buildOption) {
 		o.maxConnDuration = d
