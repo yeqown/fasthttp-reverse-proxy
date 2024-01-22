@@ -5,6 +5,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 
 	"github.com/fasthttp/websocket"
 	"github.com/valyala/fasthttp"
@@ -89,7 +90,13 @@ func (w *WSReverseProxy) ServeHTTP(ctx *fasthttp.RequestCtx) {
 	// opening a new TCP connection time for each request. This should be
 	// optional:
 	// http://tools.ietf.org/html/draft-ietf-hybi-websocket-multiplexing-01
-	connBackend, respBackend, err := dialer.Dial(w.option.target.String(), forwardHeader)
+	overridePath := ctx.Request.Header.Peek("Override-Path")
+	if len(overridePath) == 0 {
+		overridePath = []byte(w.option.target.Path)
+	}
+	ref := &url.URL{Path: string(overridePath), RawQuery: string(ctx.QueryArgs().QueryString())}
+	newURL := w.option.target.ResolveReference(ref)
+	connBackend, respBackend, err := dialer.Dial(newURL.String(), forwardHeader)
 	if err != nil {
 		errorF(w.option.logger, "websocketproxy: couldn't dial to remote backend(%s): %v", w.option.target.String(), err)
 
