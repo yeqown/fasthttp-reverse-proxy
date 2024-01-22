@@ -67,6 +67,9 @@ func ProxyHandler(ctx *fasthttp.RequestCtx) {
 
 	switch string(ctx.Path()) {
 	case "/echo":
+		// [OPTIONAL]: you can override path from `WithURL_OptionWS`
+		//             by providing "Override-Path" header  
+		// ctx.Request.Header.Set("Override-Path", "/real_echo")
 		proxyServer.ServeHTTP(ctx)
 	case "/":
 		fasthttp.ServeFileUncompressed(ctx, "./index.html")
