@@ -83,7 +83,7 @@ func main() {
 	}
 
 	server := fasthttp.Server{
-		Name:    "EchoExample",
+		Name:    "EchoExample with dynamic routing",
 		Handler: requestHandler,
 	}
 
