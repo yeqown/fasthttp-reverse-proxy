@@ -59,6 +59,9 @@ func ProxyHandler(ctx *fasthttp.RequestCtx) {
 		var err error
 		proxyServer, err = proxy.NewWSReverseProxyWith(
 			proxy.WithURL_OptionWS("ws://localhost:8080/echo"),
+			// [OPTIONAL]: you can override path from `WithURL_OptionWS`
+			//             by providing WithDynamicPath_OptionWS.
+			proxy.WithDynamicPath_OptionWS(true, proxy.DefaultOverrideHeader),
 		)
 		if err != nil {
 			panic(err)
@@ -68,8 +71,8 @@ func ProxyHandler(ctx *fasthttp.RequestCtx) {
 	switch string(ctx.Path()) {
 	case "/echo":
 		// [OPTIONAL]: you can override path from `WithURL_OptionWS`
-		//             by providing "Override-Path" header  
-		// ctx.Request.Header.Set("Override-Path", "/real_echo")
+		//             by providing proxy.DefaultOverrideHeader (or any custom) header  
+		// ctx.Request.Header.Set(proxy.DefaultOverrideHeader, "/real_echo")
 		proxyServer.ServeHTTP(ctx)
 	case "/":
 		fasthttp.ServeFileUncompressed(ctx, "./index.html")
