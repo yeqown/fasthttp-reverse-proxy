@@ -44,6 +44,15 @@ type buildOptionWS struct {
 	// upgrader specifies the parameters for upgrading a incoming HTTP
 	// connection to a WebSocket connection. If nil, DefaultUpgrader is used.
 	upgrader *websocket.FastHTTPUpgrader
+
+	// dynamicPathFeature specifies if developer would be able to override path for base URL of`target`dynamically
+	// Default value is false
+	dynamicPathFeature *dynamicPathFeatureOp
+}
+
+type dynamicPathFeatureOp struct {
+	enable      bool
+	headerValue string
 }
 
 func (o *buildOptionWS) validate() error {
@@ -60,12 +69,13 @@ func (o *buildOptionWS) validate() error {
 
 func defaultBuildOptionWS() *buildOptionWS {
 	return &buildOptionWS{
-		logger:   &nopLogger{},
-		debug:    false,
-		target:   nil,
-		fn:       nil,
-		dialer:   nil,
-		upgrader: nil,
+		logger:             &nopLogger{},
+		debug:              false,
+		target:             nil,
+		fn:                 nil,
+		dialer:             nil,
+		upgrader:           nil,
+		dynamicPathFeature: nil,
 	}
 }
 
@@ -107,5 +117,24 @@ func WithUpgrader_OptionWS(upgrader *websocket.FastHTTPUpgrader) OptionWS {
 func WithForwardHeadersHandlers_OptionWS(handler forwardHeaderHandler) OptionWS {
 	return newFuncBuildOptionWS(func(o *buildOptionWS) {
 		o.fn = handler
+	})
+}
+
+// WithDynamicPath_OptionWS enable/disable dynamic path overriding explicitly
+// WithDynamicPath_OptionWS(true)
+func WithDynamicPath_OptionWS(t bool, header ...string) OptionWS {
+	return newFuncBuildOptionWS(func(o *buildOptionWS) {
+		if o.dynamicPathFeature == nil {
+			o.dynamicPathFeature = &dynamicPathFeatureOp{}
+		}
+		o.dynamicPathFeature.enable = t
+		if !t {
+			return
+		}
+		if len(header) > 0 {
+			o.dynamicPathFeature.headerValue = header[0]
+		} else {
+			o.dynamicPathFeature.headerValue = DefaultOverrideHeader
+		}
 	})
 }

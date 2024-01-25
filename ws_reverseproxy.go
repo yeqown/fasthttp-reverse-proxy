@@ -25,6 +25,9 @@ var (
 
 	// DefaultDialer is a dialer with all fields set to the default zero values.
 	DefaultDialer = websocket.DefaultDialer
+
+	// DefaultOverrideHeader is a default header value for using in dymanic path feature
+	DefaultOverrideHeader = "PROXY-OVERRIDE-PATH"
 )
 
 // WSReverseProxy .
@@ -90,13 +93,16 @@ func (w *WSReverseProxy) ServeHTTP(ctx *fasthttp.RequestCtx) {
 	// opening a new TCP connection time for each request. This should be
 	// optional:
 	// http://tools.ietf.org/html/draft-ietf-hybi-websocket-multiplexing-01
-	overridePath := ctx.Request.Header.Peek("Override-Path")
-	if len(overridePath) == 0 {
-		overridePath = []byte(w.option.target.Path)
+	finalURL := w.option.target
+	if w.option.dynamicPathFeature != nil && w.option.dynamicPathFeature.enable {
+		overridePath := ctx.Request.Header.Peek(w.option.dynamicPathFeature.headerValue)
+		if len(overridePath) == 0 {
+			overridePath = []byte(w.option.target.Path)
+		}
+		ref := &url.URL{Path: string(overridePath), RawQuery: string(ctx.QueryArgs().QueryString())}
+		finalURL = w.option.target.ResolveReference(ref)
 	}
-	ref := &url.URL{Path: string(overridePath), RawQuery: string(ctx.QueryArgs().QueryString())}
-	newURL := w.option.target.ResolveReference(ref)
-	connBackend, respBackend, err := dialer.Dial(newURL.String(), forwardHeader)
+	connBackend, respBackend, err := dialer.Dial(finalURL.String(), forwardHeader)
 	if err != nil {
 		errorF(w.option.logger, "websocketproxy: couldn't dial to remote backend(%s): %v", w.option.target.String(), err)
 

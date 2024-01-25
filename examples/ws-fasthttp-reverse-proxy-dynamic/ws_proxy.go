@@ -12,9 +12,10 @@ import (
 )
 
 var (
-	proxyServer *proxy.WSReverseProxy
-	once        sync.Once
-	mainServer  = fmt.Sprintf("ws://localhost:8080")
+	proxyServer             *proxy.WSReverseProxy
+	once                    sync.Once
+	mainServer              = fmt.Sprintf("ws://localhost:8080")
+	proxyOverridePathHeader = proxy.DefaultOverrideHeader
 )
 
 // ProxyHandler ... fasthttp.RequestHandler func
@@ -26,6 +27,7 @@ func ProxyHandler(ctx *fasthttp.RequestCtx) {
 			proxy.WithUpgrader_OptionWS(&websocket.FastHTTPUpgrader{
 				CheckOrigin: func(r *fasthttp.RequestCtx) bool { return true },
 			}),
+			proxy.WithDynamicPath_OptionWS(true, proxyOverridePathHeader),
 		)
 		if err != nil {
 			panic(err)
@@ -44,7 +46,7 @@ func ProxyHandler(ctx *fasthttp.RequestCtx) {
 	switch string(ctx.Path()) {
 	case "/echo":
 		ctx.QueryArgs().Set("whoami", "proxy_server")
-		ctx.Request.Header.Set("Override-Path", fmt.Sprintf("/talk_about/%s", fruit))
+		ctx.Request.Header.Set(proxyOverridePathHeader, fmt.Sprintf("/talk_about/%s", fruit))
 		proxyServer.ServeHTTP(ctx)
 	case "/":
 		fasthttp.ServeFileUncompressed(ctx, "./index.html")
