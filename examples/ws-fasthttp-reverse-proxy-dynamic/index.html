@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <script>
+        window.addEventListener("load", function (evt) {
+            var output = document.getElementById("output");
+            var input = document.getElementById("input");
+            var wsConnections = new Map();
+            var lastWs;
+            var print = function (message) {
+                var d = document.createElement("div");
+                d.innerHTML = message;
+                output.appendChild(d);
+            };
+            const baseURL = 'ws://localhost:8081/echo'
+            document.getElementById("open_apples").onclick = function (evt) {
+                if (wsConnections.has('apples_chat')) {
+                    lastWs = 'apples_chat'
+                    return false;
+                }
+                // Proxy host
+                // Change this to talk about either 'apples' or 'oranges'
+                // 'q' field will be deleted by proxy server
+                const ws = new WebSocket(`${baseURL}?fruit=apples&q=secret`);
+                ws.onopen = function (evt) {
+                    print("👍 OPENED chat about apples");
+                }
+                ws.onclose = function (evt) {
+                    print("😂 CLOSED chat about apples");
+                    ws = null;
+                }
+                ws.onmessage = function (evt) {
+                    print("> " + evt.data);
+                }
+                ws.onerror = function (evt) {
+                    console.log(evt);
+                    print("[ERR]: " + evt.data);
+                }
+                wsConnections.set('apples_chat', ws)
+                lastWs = 'apples_chat'
+                return false;
+            };
+            document.getElementById("open_oranges").onclick = function (evt) {
+                if (wsConnections.has('oranges_chat')) {
+                    lastWs = 'oranges_chat'
+                    return false;
+                }
+                // Proxy host
+                // Change this to talk about either 'apples' or 'oranges'
+                // 'q' field will be deleted by proxy server
+                const ws = new WebSocket(`${baseURL}?fruit=oranges&q=secret`);
+                ws.onopen = function (evt) {
+                    print("👍 OPENED chat about oranges");
+                }
+                ws.onclose = function (evt) {
+                    print("😂 CLOSED chat about oranges");
+                    ws = null;
+                }
+                ws.onmessage = function (evt) {
+                    print("> " + evt.data);
+                }
+                ws.onerror = function (evt) {
+                    console.log(evt);
+                    print("[ERR]: " + evt.data);
+                }
+                wsConnections.set('oranges_chat', ws)
+                lastWs = 'oranges_chat'
+                return false;
+            };
+            document.getElementById("send").onclick = function (evt) {
+                const ws = wsConnections.get(lastWs)
+                if (!ws) {
+                    return false;
+                }
+                print("$ " + input.value);
+                ws.send(input.value);
+                return false;
+            };
+            document.getElementById("close").onclick = function (evt) {
+                const ws = wsConnections.get(lastWs)
+                if (!ws) {
+                    return false;
+                }
+                print("$ Wait to close chat with id: " + lastWs);
+                ws.close();
+                wsConnections.delete(lastWs);
+                return false;
+            };
+        });
+    </script>
+</head>
+
+<body>
+    <table>
+        <tr>
+            <td valign="top" width="50%">
+                <p>"Open" to create a connection to the server <br>
+                    "Send" to send a message to the server <br>
+                    "Close" to close the connection <br>
+                    You can change the message and send multiple times (to early activated connection).
+                    <p>
+                        <form>
+                            <button id="open_apples">Open chat about apples</button>
+                            <button id="open_oranges">Open chat about oranges</button>
+                            <button id="close">Close</button>
+                            <p><input id="input" type="text" value="Hello world!">
+                                <button id="send">Send</button>
+                        </form>
+            </td>
+            <td valign="top" width="50%">
+                <div id="output"></div>
+            </td>
+        </tr>
+    </table>
+</body>
+<style>
+    #output {
+        background-color: black;
+        color: white;
+        width: auto;
+        height: 400px;
+        overflow: auto;
+        padding: 1em;
+    }
+</style>
+
+</html>
