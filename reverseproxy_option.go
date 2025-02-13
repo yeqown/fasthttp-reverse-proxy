@@ -37,6 +37,9 @@ type buildOption struct {
 	// disablePathNormalizing disable path normalizing.
 	disablePathNormalizing bool
 
+	// disableVirtualHost disable virtual host.
+	disableVirtualHost bool
+
 	// maxConnDuration of hostClient
 	maxConnDuration time.Duration
 }
@@ -51,6 +54,7 @@ func defaultBuildOption() *buildOption {
 		tlsConfig:              nil,
 		timeout:                0,
 		disablePathNormalizing: false,
+		disableVirtualHost:     false,
 		maxConnDuration:        0,
 	}
 }
@@ -121,6 +125,13 @@ func WithTimeout(d time.Duration) Option {
 func WithDisablePathNormalizing(isDisablePathNormalizing bool) Option {
 	return newFuncBuildOption(func(o *buildOption) {
 		o.disablePathNormalizing = isDisablePathNormalizing
+	})
+}
+
+// WithDisableVirtualHost sets whether disable virtual host.
+func WithDisableVirtualHost(isDisableVirtualHost bool) Option {
+	return newFuncBuildOption(func(o *buildOption) {
+		o.disableVirtualHost = isDisableVirtualHost
 	})
 }
 

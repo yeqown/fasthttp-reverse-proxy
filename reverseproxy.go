@@ -138,7 +138,9 @@ func (p *ReverseProxy) ServeHTTP(ctx *fasthttp.RequestCtx) {
 	debugF(p.opt.debug, p.opt.logger, "rev request headers to proxy, addr = %s, headers = %s", c.Addr, req.Header.String())
 
 	// assign the host to support virtual hosting, aka shared web hosting (one IP, multiple domains)
-	req.SetHost(c.Addr)
+	if !p.opt.disableVirtualHost {
+		req.SetHost(c.Addr)
+	}
 
 	// execute the request and rev response with timeout
 	if err := p.doWithTimeout(c, req, res); err != nil {
