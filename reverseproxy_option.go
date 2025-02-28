@@ -40,6 +40,12 @@ type buildOption struct {
 	// disableVirtualHost disable virtual host.
 	disableVirtualHost bool
 
+	// maxResponseBodySize is the maximum response body size in bytes.
+	maxResponseBodySize int
+
+	// streamResponseBody denotes whether stream response body or not.
+	streamResponseBody bool
+
 	// maxConnDuration of hostClient
 	maxConnDuration time.Duration
 }
@@ -132,6 +138,14 @@ func WithDisablePathNormalizing(isDisablePathNormalizing bool) Option {
 func WithDisableVirtualHost(isDisableVirtualHost bool) Option {
 	return newFuncBuildOption(func(o *buildOption) {
 		o.disableVirtualHost = isDisableVirtualHost
+	})
+}
+
+// WithStreamResponseBody sets whether stream response body or not.
+func WithStreamResponseBody(size int) Option {
+	return newFuncBuildOption(func(o *buildOption) {
+		o.streamResponseBody = true
+		o.maxResponseBodySize = size
 	})
 }
 
